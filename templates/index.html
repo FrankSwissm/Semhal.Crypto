@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CORE SYSTEM // Semhal Network Architecture</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .hero-block { padding: 3rem 2rem; margin-bottom: 2rem; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+        .chart-card { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .chart-card h3 { font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; letter-spacing: 1px; }
+        .chart-container { position: relative; height: 260px; width: 100%; }
+        .pulse-indicator { display: inline-block; width: 8px; height: 8px; background: #00ffa3; border-radius: 50%; margin-right: 0.5rem; box-shadow: 0 0 8px #00ffa3; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/" class="active">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            {% if is_logged_in %}
+                <a href="/portal/{{ current_role.lower() }}" class="runtime-badge" style="text-decoration:none; background: rgba(212, 175, 55, 0.2); color: var(--accent-gold);">ACTIVE WALLET [{{ current_role }}]</a>
+                <a href="/auth/logout" class="logout-btn">Disconnect</a>
+            {% else %}
+                <a href="/news" class="runtime-badge" style="text-decoration:none; color:var(--accent-cyan);">CONNECT NODE</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="hero-block">
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 2px;">Mainframe Main Interface</span>
+            <h1 style="margin-top: 0.5rem;">Global Decentralized Settlement Engine</h1>
+            <p style="color: var(--text-secondary); max-width: 650px; margin: 1rem auto 2rem auto; font-size: 0.95rem; line-height: 1.6;">
+                Welcome to the Semhal Cryptocurrency Network. Monitoring multi-tier digital asset distribution arrays, cryptographic ledger states, and automated payment tunnels.
+            </p>
+            
+            {% if is_logged_in %}
+                <a href="/portal/{{ current_role.lower() }}" class="action-btn" style="text-decoration:none; display:inline-block; border-color: var(--accent-gold); color: #000; background: var(--accent-gold);">Open My Active Workspace</a>
+            {% else %}
+                <a href="/news" class="action-btn" style="text-decoration:none; display:inline-block;">Initialize New Cryptographic Node</a>
+            {% endif %}
+        </div>
+
+        <div class="grid" style="margin-bottom: 2rem;">
+            <div class="card">
+                <h3>Total Supply Allocation</h3>
+                <div class="metric" style="color: var(--accent-gold);">{{ total_supply }} <span style="font-size: 1.2rem; color: #fff;">sUSD</span></div>
+            </div>
+            <div class="card">
+                <h3>Active Network Nodes</h3>
+                <div class="metric" style="color: var(--accent-cyan);">{{ total_nodes }} <span style="font-size: 1.2rem; color: #fff;">Linked</span></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="chart-card">
+                <h3><span class="pulse-indicator"></span>Live Network Activity Stream (TPS)</h3>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3>Ledger Asset Distribution Profiles</h3>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURING THE REAL-TIME ACTIVITY GRAPH ---
+        const ctxActivity = document.getElementById('activityChart').getContext('2d');
+        
+        // Populate static intervals for tracking labels (e.g., historical timelines)
+        const timeLabels = ['60s ago', '50s ago', '40s ago', '30s ago', '20s ago', '10s ago', 'Current'];
+        let initialActivityData = [12, 19, 15, 28, 22, 34, 25];
+
+        const activityChart = new Chart(ctxActivity, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Transactions / Sec',
+                    data: initialActivityData,
+                    borderColor: '#00f2ff',
+                    backgroundColor: 'rgba(0, 242, 255, 0.05)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#00f2ff',
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.3 // Gives it a futuristic smooth curve flow
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#a4a8b6', font: { family: 'Courier New' } } },
+                    y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#a4a8b6', font: { family: 'Courier New' } }, beginAtZero: true }
+                }
+            }
+        });
+
+        // Simulate continuous active data ingestion feed over the network interface
+        setInterval(() => {
+            // Remove the oldest data point index
+            initialActivityData.shift();
+            // Generate a realistic dynamic transaction threshold spike between 15 and 45 TPS
+            const nextTxMetric = Math.floor(Math.random() * (45 - 15 + 1)) + 15;
+            initialActivityData.push(nextTxMetric);
+            
+            // Re-render canvas layers smoothly
+            activityChart.update();
+        }, 3000);
+
+
+        // --- 2. CONFIGURING THE LEDGER ALLOCATION PROFILE CHART ---
+        const ctxDistribution = document.getElementById('distributionChart').getContext('2d');
+        
+        // Async API fetch call to safely grab real active parameters from your backend json ledger
+        async function renderDistributionChart() {
+            try {
+                const res = await fetch('/api/balances');
+                const data = await res.json();
+                
+                // Extract public addresses and their matching balances dynamically
+                const accounts = Object.keys(data.accounts);
+                const balances = Object.values(data.accounts);
+                
+                // Shorten lengthy public hex values for cleaner dashboard presentation layout
+                const shortAddresses = accounts.map(addr => addr.substring(0, 6) + '...' + addr.substring(38));
+
+                new Chart(ctxDistribution, {
+                    type: 'bar',
+                    data: {
+                        labels: shortAddresses,
+                        datasets: [{
+                            label: 'Allocation Asset Size',
+                            data: balances,
+                            backgroundColor: [
+                                'rgba(212, 175, 55, 0.6)', 
+                                'rgba(0, 242, 255, 0.6)',   
+                                'rgba(0, 255, 163, 0.6)',   
+                                'rgba(255, 74, 74, 0.6)'    
+                            ],
+                            borderColor: [
+                                '#d4af37',
+                                '#00f2ff',
+                                '#00ffa3',
+                                '#ff4a4a'
+                            ],
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#a4a8b6', font: { family: 'Courier New', size: 10 } } },
+                            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#a4a8b6', font: { family: 'Courier New' } } }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Ledger metrics streaming connection offline:", err);
+            }
+        }
+
+        // Initialize distribution display layer on runtime boot
+        renderDistributionChart();
+    </script>
+</body>
+</html>

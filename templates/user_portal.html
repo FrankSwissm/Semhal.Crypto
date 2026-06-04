@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>USER PORTAL // Semhal Ledger</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .portal-container { max-width: 900px; margin: 3rem auto; }
+        .wallet-banner { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); border: 1px solid var(--border-glow); padding: 2.5rem; border-radius: 12px; margin-bottom: 2rem; position: relative; overflow: hidden; }
+        .wallet-banner::after { content: ''; position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(0,242,255,0.15) 0%, transparent 70%); }
+        .address-bar { font-family: var(--font-mono); background: rgba(0,0,0,0.4); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); color: #a4a8b6; margin-top: 0.5rem; display: inline-block; font-size: 0.85rem; word-break: break-all; }
+        .balance-display { font-size: 3rem; font-weight: bold; color: var(--accent-gold); margin: 1.5rem 0 0.5rem 0; font-family: var(--font-mono); }
+        .transfer-box { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 12px; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .action-btn { width: 100%; background: var(--accent-cyan); color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.9rem; }
+        .submit-input { width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glow); color: #fff; border-radius: 4px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            <a href="/portal/user" class="runtime-badge" style="text-decoration:none; background: rgba(0, 242, 255, 0.2); border-color: var(--accent-cyan); color: var(--accent-cyan);">MY PORTAL [USER]</a>
+            <a href="/auth/logout" class="logout-btn">Disconnect</a>
+        </div>
+    </header>
+
+    <div class="container portal-container">
+        <div class="wallet-banner">
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;">Secure Node Interface</span>
+            <h2>Active Wallet Session</h2>
+            <div>
+                <span class="address-bar">{{ address }}</span>
+            </div>
+            <div class="balance-display" id="current-balance">{{ balance }} <span style="font-size:1.5rem; color:#fff;">sUSD</span></div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; font-family: var(--font-mono);">Available balance synced with worldwide public ledger records.</p>
+        </div>
+
+        <div class="transfer-box">
+            <h3 style="margin-bottom: 1.5rem; font-family: var(--font-mono); text-transform: uppercase; border-bottom: 1px solid var(--border-glow); padding-bottom: 0.5rem;">Execute Worldwide Inter-Company Transfer</h3>
+            <form id="transfer-form">
+                <div class="form-group">
+                    <label>Destination / Network</label>
+                    <select name="exchange" id="exchange-select" class="submit-input" required>
+                        <option value="semhal">Semhal Ledger (Internal Network)</option>
+                        <optgroup label="Tier 1 Global Exchanges">
+                            <option value="binance">Binance</option>
+                            <option value="coinbase">Coinbase</option>
+                            <option value="kraken">Kraken</option>
+                            <option value="crypto_com">Crypto.com</option>
+                        </optgroup>
+                        <optgroup label="Professional & International Platforms">
+                            <option value="okx">OKX</option>
+                            <option value="bybit">Bybit</option>
+                            <option value="kucoin">KuCoin</option>
+                            <option value="bitstamp">Bitstamp</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="bitget">Bitget</option>
+                            <option value="gate_io">Gate.io</option>
+                            <option value="mexc">MEXC</option>
+                            <option value="uphold">Uphold</option>
+                            <option value="robinhood">Robinhood Crypto</option>
+                            <option value="bitfinex">Bitfinex</option>
+                            <option value="cex_io">CEX.IO</option>
+                            <option value="bithumb">Bithumb</option>
+                            <option value="huobi">Huobi (HTX)</option>
+                            <option value="phemex">Phemex</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Recipient Public Address (EVM Compatible 0x)</label>
+                    <input type="text" name="recipient" id="recipient-addr" class="submit-input" placeholder="0x..." required>
+                </div>
+                <div class="form-group">
+                    <label>Transfer Amount (sUSD)</label>
+                    <input type="number" name="amount" class="submit-input" placeholder="0" min="1" required>
+                </div>
+                <button type="submit" class="action-btn">Sign & Dispatch Transaction</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('transfer-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const addr = document.getElementById('recipient-addr').value;
+            const exchange = document.getElementById('exchange-select').value;
+            
+            // Standard validation for address format
+            if (!addr.startsWith('0x') || addr.length !== 42) {
+                alert(`Invalid address for ${exchange.toUpperCase()}. Must be a valid 0x Ethereum-style address.`);
+                return;
+            }
+
+            const formData = new FormData(e.target);
+            const res = await fetch('/api/transfer', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                alert('Transaction compiled, signed, and successfully settled onto the block ledger!');
+                document.getElementById('current-balance').innerHTML = `${data.new_balance} <span style="font-size:1.5rem; color:#fff;">sUSD</span>`;
+                e.target.reset();
+            } else {
+                alert('Transaction Failed: ' + data.message);
+            }
+        };
+    </script>
+</body>
+</html>

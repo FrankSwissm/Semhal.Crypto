@@ -1,0 +1,52 @@
+:root {
+    --bg-deep: #050508;
+    --surface-card: #0d0e12;
+    --border-glow: #1b1d26;
+    --accent-gold: #e2b842;
+    --accent-cyan: #00f2ff;
+    --text-primary: #f1f2f6;
+    --text-secondary: #8e92a2;
+    --font-mono: 'Geist Mono', 'Fira Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, sans-serif; }
+body { background-color: var(--bg-deep); color: var(--text-primary); overflow-x: hidden; line-height: 1.6; }
+
+body::before { 
+    content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background-image: linear-gradient(var(--border-glow) 1px, transparent 1px), linear-gradient(90deg, var(--border-glow) 1px, transparent 1px); 
+    background-size: 60px 60px; opacity: 0.12; z-index: -1; pointer-events: none; 
+}
+
+header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 4rem; border-bottom: 1px solid var(--border-glow); background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 1000; }
+.logo { font-weight: 800; letter-spacing: 2px; font-size: 1.1rem; font-family: var(--font-mono); }
+.logo span { color: var(--accent-gold); }
+
+nav { display: flex; gap: 1.5rem; }
+nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.8rem; font-weight: 500; font-family: var(--font-mono); text-transform: uppercase; }
+nav a:hover, nav a.active { color: var(--accent-gold); }
+
+.runtime-badge { font-family: var(--font-mono); background: rgba(0, 242, 255, 0.03); color: var(--accent-cyan); padding: 0.35rem 0.85rem; border: 1px solid rgba(0, 242, 255, 0.15); border-radius: 4px; font-size: 0.75rem; letter-spacing: 1px; }
+.container { max-width: 1200px; margin: 4rem auto; padding: 0 2rem; }
+.hero-container { max-width: 1200px; margin: 0 auto; padding: 5rem 2rem 3rem 2rem; text-align: center; }
+.anchor-pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-gold); border: 1px solid rgba(226, 184, 66, 0.2); background: rgba(226, 184, 66, 0.03); padding: 0.4rem 1.2rem; border-radius: 100px; margin-bottom: 2rem; letter-spacing: 2px; text-transform: uppercase; }
+
+h1 { font-size: 2.5rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 0.5rem; }
+.subtitle { color: var(--text-secondary); margin-bottom: 3rem; font-size: 1.05rem; }
+.box-panel { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2.25rem; border-radius: 12px; margin-bottom: 2rem; }
+.box-panel h2 { font-size: 1.2rem; color: var(--accent-gold); margin-bottom: 1.25rem; font-family: var(--font-mono); text-transform: uppercase; }
+
+pre { background: #020203; border: 1px solid #14161d; padding: 1.25rem; border-radius: 8px; font-family: var(--font-mono); color: #a4a8b6; overflow-x: auto; font-size: 0.85rem; }
+footer { max-width: 1200px; margin: 4rem auto 0 auto; padding: 2rem; border-top: 1px solid var(--border-glow); display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); }
+
+/* Auth Interface Extensions */
+.auth-nav-block { display: flex; align-items: center; gap: 1rem; }
+.logout-btn { background: transparent; border: 1px solid #ff4a4a; color: #ff4a4a; padding: 0.35rem 0.75rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; text-decoration: none; text-transform: uppercase; }
+.logout-btn:hover { background: #ff4a4a; color: #000; }
+.submit-input { width: 100%; background: #020203; border: 1px solid var(--border-glow); padding: 0.85rem; border-radius: 6px; color: #fff; font-family: var(--font-mono); font-size: 0.9rem; margin-bottom: 1rem; }
+.submit-input:focus { border-color: var(--accent-gold); outline: none; }
+.portal-card-metric { font-size: 2.5rem; font-family: var(--font-mono); color: var(--accent-cyan); margin: 1rem 0; font-weight: bold; }
+.badge-role { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 3px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; font-family: var(--font-mono); vertical-align: middle; margin-left: 0.5rem; }
+.badge-user { background: rgba(0, 242, 255, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 255, 0.2); }
+.badge-miner { background: rgba(226, 184, 66, 0.1); color: var(--accent-gold); border: 1px solid rgba(226, 184, 66, 0.2); }
+.badge-admin { background: rgba(255, 74, 74, 0.1); color: #ff4a4a; border: 1px solid rgba(255, 74, 74, 0.2); }

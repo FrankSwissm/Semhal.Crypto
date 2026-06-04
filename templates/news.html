@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NEWS & AUTH // Semhal Network</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+    <style>
+        .split-container { display: grid; grid-template-columns: 450px 1fr; gap: 3rem; }
+        .auth-box { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2.5rem; border-radius: 12px; }
+        .tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border-glow); margin-bottom: 2rem; padding-bottom: 0.75rem; }
+        .tab { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-secondary); cursor: pointer; background: none; border: none; padding-bottom: 0.5rem; text-transform: uppercase; }
+        .tab.active { color: var(--accent-gold); font-weight: bold; border-bottom: 2px solid var(--accent-gold); }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .btn { width: 100%; background: var(--accent-gold); color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); font-size: 0.9rem; text-transform: uppercase; margin-top: 1rem; display: block; text-align: center; text-decoration: none; }
+        .news-card { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; }
+        .news-tag { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); text-transform: uppercase; margin-bottom: 0.5rem; display: inline-block; }
+        .switch-mode-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; cursor: pointer; }
+        .switch-mode-text span { color: var(--accent-cyan); text-decoration: underline; }
+        
+        .generated-credentials-box { background: #020203; border: 1px dashed rgba(0, 242, 255, 0.3); padding: 1rem; border-radius: 6px; margin-bottom: 1.25rem; display: none; }
+        .generated-credentials-box p { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.4; color: #a4a8b6; word-break: break-all; margin-bottom: 0.5rem; }
+        .generated-credentials-box strong { color: var(--accent-cyan); text-transform: uppercase; display: block; font-size: 0.65rem; margin-bottom: 0.2rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news" class="active">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            {% if is_logged_in %}
+                <a href="/portal/{{ current_role.lower() }}" class="runtime-badge" style="text-decoration:none;">MY PORTAL [{{ current_role }}]</a>
+                <a href="/auth/logout" class="logout-btn">Disconnect</a>
+            {% else %}
+                <div class="runtime-badge" style="color:var(--text-secondary); border-color:var(--border-glow);">UNAUTHENTICATED</div>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="container split-container">
+        <div>
+            <h1 id="panel-title" style="margin-bottom:1.5rem;">Access Node</h1>
+            
+            <div class="auth-box" id="auth-main-module">
+                <div class="tabs">
+                    <button class="tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+                    <button class="tab" id="tab-register" onclick="switchTab('register')">Register</button>
+                </div>
+                
+                <form id="auth-form">
+                    <input type="hidden" id="auth-action" value="login">
+                    
+                    <div class="generated-credentials-box" id="creds-generation-output">
+                        <p>
+                            <strong>Globally Compatible Public Address (EVM Standard):</strong>
+                            <span id="display-gen-address" style="color:#fff; font-weight:bold; font-size:0.85rem;">Calculating curves...</span>
+                        </p>
+                        <p style="margin-bottom:0;">
+                            <strong>Worldwide Compatible 12-Word Seed Phrase (BIP-39 Standard):</strong>
+                            <span id="display-gen-seed" style="color:var(--accent-gold); font-style:italic;">Gathering entropy...</span>
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label id="addr-field-label">Node Signature Address</label>
+                        <input type="text" id="input-address" name="address" class="submit-input" placeholder="0x..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Access Key / Password</label>
+                        <input type="password" name="password" class="submit-input" placeholder="••••••••••••" required>
+                        </div>
+                    <button type="submit" class="btn" id="submit-btn">Initialize Node Session</button>
+                </form>
+                <div class="switch-mode-text" id="recovery-trigger" onclick="toggleRecovery(true)">Lost keys? <span>Recover Node Registry</span></div>
+            </div>
+
+            <div class="auth-box" id="recovery-module" style="display:none;">
+                <div class="tabs">
+                    <button class="tab active" style="color:#ff4a4a; border-bottom: 2px solid #ff4a4a;">Recovery System</button>
+                </div>
+                <form id="recovery-form">
+                    <div class="form-group">
+                        <label>Enter Your 12-Word Mnemonic Passphrase</label>
+                        <input type="text" id="recovery-mnemonic" name="mnemonic" class="submit-input" placeholder="abandon ability able about above absent absorb abstract absurd abuse access accident" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Assign New Session Access Key / Password</label>
+                        <input type="password" name="password" class="submit-input" placeholder="••••••••••••" required>
+                        </div>
+                    <button type="submit" class="btn" style="background:#ff4a4a; color:#000;">Derive Address & Re-verify</button>
+                </form>
+                <div class="switch-mode-text" onclick="toggleRecovery(false)">Remembered access credentials? <span>Return to Gateway</span></div>
+            </div>
+        </div>
+
+        <div>
+            <h1 style="margin-bottom:1.5rem;">Ecosystem Updates</h1>
+            <div class="news-card">
+                <span class="news-tag">Protocol Update</span>
+                <h3 style="margin-bottom:0.5rem;">Validation Node Checkpoint Mapping Finalized</h3>
+                <p style="color: var(--text-secondary); font-size:0.95rem;">The primary infrastructure allocation paths have successfully bound their genesis balances to their respective ledger indices. System validation rules are fully locked under the EIP-55 configuration array.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function switchTab(mode) {
+            const actionInput = document.getElementById('auth-action');
+            const loginTab = document.getElementById('tab-login');
+            const registerTab = document.getElementById('tab-register');
+            const submitBtn = document.getElementById('submit-btn');
+            const credsBox = document.getElementById('creds-generation-output');
+            const inputAddr = document.getElementById('input-address');
+            const labelAddr = document.getElementById('addr-field-label');
+
+            actionInput.value = mode;
+
+            if (mode === 'login') {
+                loginTab.classList.add('active');
+                registerTab.classList.remove('active');
+                submitBtn.innerText = "Initialize Node Session";
+                credsBox.style.display = "none";
+                labelAddr.innerText = "Node Signature Address";
+                inputAddr.value = "";
+                inputAddr.readOnly = false;
+            } else {
+                registerTab.classList.add('active');
+                loginTab.classList.remove('active');
+                submitBtn.innerText = "Register Cryptographic Node";
+                
+                document.getElementById('display-gen-address').innerText = "Calculating crypto curves...";
+                document.getElementById('display-gen-seed').innerText = "Assembling BIP-39 mnemonic context...";
+                credsBox.style.display = "block";
+                
+                try {
+                    const wallet = ethers.Wallet.createRandom();
+                    const realAddress = wallet.address;
+                    const realMnemonic = wallet.mnemonic.phrase;
+
+                    document.getElementById('display-gen-address').innerText = realAddress;
+                    document.getElementById('display-gen-seed').innerText = realMnemonic;
+                    
+                    labelAddr.innerText = "Globally Valid Public Target Address";
+                    inputAddr.value = realAddress;
+                    inputAddr.readOnly = true; 
+                } catch (err) {
+                    console.error(err);
+                    document.getElementById('display-gen-address').innerText = "Security curve computation error.";
+                }
+            }
+        }
+
+        function toggleRecovery(showRecovery) {
+            document.getElementById('auth-main-module').style.display = showRecovery ? 'none' : 'block';
+            document.getElementById('recovery-module').style.display = showRecovery ? 'block' : 'none';
+            document.getElementById('panel-title').innerText = showRecovery ? "Account Recovery" : "Access Node";
+        }
+
+        document.getElementById('auth-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const action = document.getElementById('auth-action').value;
+            const formData = new FormData(e.target);
+            formData.append('action', action);
+            
+            const res = await fetch('/auth/login', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                if (action === 'register') {
+                    const generatedSeed = document.getElementById('display-gen-seed').innerText;
+                    alert(`Registration Complete!\n\nCRITICAL SECURITY NOTICE:\nThis seed is valid across all worldwide crypto networks. Keep it completely secret:\n\n"${generatedSeed}"`);
+                }
+                window.location.href = data.redirect;
+            } else {
+                alert(data.message);
+            }
+        };
+
+        document.getElementById('recovery-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const mnemonicInput = document.getElementById('recovery-mnemonic').value.trim();
+            const passwordInput = e.target.password.value;
+            
+            try {
+                const recoveredWallet = ethers.Wallet.fromPhrase(mnemonicInput);
+                const derivedAddress = recoveredWallet.address;
+                
+                const formData = new FormData();
+                formData.append('address', derivedAddress);
+                formData.append('password', passwordInput);
+                formData.append('action', 'login');
+                
+                const res = await fetch('/auth/login', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    alert(`Wallet Recovered Successfully!\n\nDerived Public Target:\n${derivedAddress}`);
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert("Cryptographic Failure: Invalid 12-word seed phrase combination entered.");
+                console.error(err);
+            }
+        };
+    </script>
+</body>
+</html>

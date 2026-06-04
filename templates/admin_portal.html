@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ADMIN PORTAL // Semhal Network</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .portal-container { max-width: 1000px; margin: 3rem auto; }
+        .admin-banner { background: linear-gradient(135deg, #1f1111 0%, #2d1616 100%); border: 1px solid #ff4a4a; padding: 2.5rem; border-radius: 12px; margin-bottom: 2rem; }
+        .ledger-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; background: var(--surface-card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glow); }
+        .ledger-table th, .ledger-table td { padding: 1rem; text-align: left; font-family: var(--font-mono); font-size: 0.85rem; }
+        .ledger-table th { background: rgba(255,255,255,0.03); color: var(--text-secondary); border-bottom: 1px solid var(--border-glow); text-transform: uppercase; font-size: 0.75rem; }
+        .ledger-table tr:not(:last-child) td { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .purge-btn { background: rgba(255, 74, 74, 0.1); color: #ff4a4a; border: 1px solid #ff4a4a; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; }
+        .purge-btn:hover { background: #ff4a4a; color: #000; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            <a href="/portal/admin" class="runtime-badge" style="text-decoration:none; background: rgba(255, 74, 74, 0.15); border-color: #ff4a4a; color: #ff4a4a;">MY PORTAL [ADMIN]</a>
+            <a href="/auth/logout" class="logout-btn">Disconnect</a>
+        </div>
+    </header>
+
+    <div class="container portal-container">
+        <div class="admin-banner">
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: #ff4a4a; text-transform: uppercase; letter-spacing: 1px;">Root Security Clearance</span>
+            <h2>Network Core Registry Control</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Modify active balance limits, evaluate account distributions, or purge non-compliant records from the network balance database.</p>
+        </div>
+
+        <h3 style="font-family: var(--font-mono); text-transform: uppercase; margin-top: 2rem;">Global Account Matrix</h3>
+        <table class="ledger-table">
+            <thead>
+                <tr>
+                    <th>Node Identity Address</th>
+                    <th>Ledger Balance Allocation</th>
+                    <th>Administrative Authority</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for target_address, balance in ledger.items() %}
+                <tr id="row-{{ loop.index }}">
+                    <td style="color:#fff; word-break:break-all;">{{ target_address }}</td>
+                    <td style="color:var(--accent-gold); font-weight:bold;">{{ balance }} sUSD</td>
+                    <td>
+                        <button class="purge-btn" onclick="purgeNode('{{ target_address }}', 'row-{{ loop.index }}')">Purge Node Record</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function purgeNode(address, rowId) {
+            if (!confirm(`CRITICAL CONFIRMATION REQUIRED:\n\nAre you sure you want to completely remove account address ${address} from the ledger structure?`)) return;
+            
+            const formData = new FormData();
+            formData.append('target', address);
+            
+            const res = await fetch('/api/admin/purge', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                document.getElementById(rowId).remove();
+                alert('Account entry successfully pruned from local json ledger storage.');
+            } else {
+                alert('Purge operation rejected: ' + data.message);
+            }
+        }
+    </script>
+</body>
+</html>

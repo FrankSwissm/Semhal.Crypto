@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MARKETS // Semhal Network</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.9rem; }
+        th { text-align: left; padding: 0.75rem; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border-glow); }
+        td { padding: 1rem 0.75rem; border-bottom: 1px solid #14161f; }
+        .price { color: var(--accent-cyan); text-align: right; }
+        .change { color: #4fff8d; text-align: right; }
+        th.text-right { text-align: right; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets" class="active">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>Global Markets Intelligence</h1>
+        <div class="subtitle">Aggregate visual feeds matching peripheral asset configurations and international trade indicators.</div>
+        
+        <div class="market-grid">
+            <div class="box-panel" style="margin-bottom:0;">
+                <h2>Cryptocurrency Reference Indexes</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th class="text-right">Index Price</th>
+                            <th class="text-right">24H Delta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>BTC / Bitcoin</td><td class="price">$96,430.50</td><td class="change">+1.82%</td></tr>
+                        <tr><td>ETH / Ethereum</td><td class="price">$3,480.25</td><td class="change">+2.41%</td></tr>
+                        <tr><td>SOL / Solana</td><td class="price">$184.60</td><td class="change">+5.10%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="box-panel" style="margin-bottom:0;">
+                <h2>Macro World Trade Indicators</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Commodity / Index</th>
+                            <th class="text-right">Value Metric</th>
+                            <th class="text-right">Trend Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>DXY / US Dollar Index</td><td class="price">102.45</td><td class="change" style="color: #ff4a4a;">-0.12%</td></tr>
+                        <tr><td>XAU / Gold Ounce Reference</td><td class="price">$2,410.80</td><td class="change">+0.65%</td></tr>
+                        <tr><td>BRENT / Crude Oil barrel</td><td class="price">$79.35</td><td class="change">+1.15%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

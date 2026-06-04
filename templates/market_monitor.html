@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MARKET INTELLIGENCE // Semhal Ledger</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .intel-container { max-width: 1000px; margin: 3rem auto; }
+        .intel-table { width: 100%; border-collapse: collapse; margin-bottom: 3rem; background: var(--surface-card); border: 1px solid var(--border-glow); border-radius: 12px; overflow: hidden; }
+        .intel-table td { padding: 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); font-family: var(--font-mono); }
+        .asset-name { color: #00f2ff; font-weight: bold; }
+        .metric-value { color: #d4af37; }
+        .delta-pos { color: #00ff9d; font-weight: bold; }
+        .delta-neg { color: #ff4a4a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets" style="color: var(--accent-cyan);">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            <a href="/portal/user" class="runtime-badge">MY PORTAL [USER]</a>
+            <a href="/auth/logout" class="logout-btn">Disconnect</a>
+        </div>
+    </header>
+
+    <div class="container intel-container">
+        <h2>Global Markets Intelligence</h2>
+        <table class="intel-table">
+            <tbody id="crypto-body"><tr><td colspan="3">Initializing live stream...</td></tr></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function fetchMarketData() {
+            const cryptoBody = document.getElementById('crypto-body');
+            try {
+                const res = await fetch('/api/market-data');
+                const data = await res.json();
+                cryptoBody.innerHTML = data.crypto.map(item => `
+                    <tr>
+                        <td class="asset-name">${item.name}</td>
+                        <td class="metric-value">${item.price}</td>
+                        <td class="${parseFloat(item.delta) >= 0 ? 'delta-pos' : 'delta-neg'}">${item.delta}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                cryptoBody.innerHTML = '<tr><td colspan="3">NETWORK_CONNECTION_TIMEOUT</td></tr>';
+            }
+        }
+        setInterval(fetchMarketData, 30000);
+        fetchMarketData();
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>USSD GATEWAY // Semhal Network</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd" class="active">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>Mobile USSD Gateway</h1>
+        <div class="subtitle">Configuring cellular communication arrays for executing transaction validation queries without internet dependency.</div>
+        
+        <div class="box-panel">
+            <h2>1. Gateway Sandbox Configuration</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">The local Python USSD endpoint interfaces seamlessly with regional connectivity environments for end-to-end device testing:</p>
+            <pre>
+# Infrastructure Context
+SIMULATOR_GATEWAY = "Africa's Talking Sandbox"
+TELECOM_CARRIER    = "Ethio Telecom"
+USSD_STRING_ROOT   = "*808#"</pre>
+        </div>
+
+        <div class="box-panel">
+            <h2>2. Session String Protocol</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">Incoming cell session packets format requests sequentially into the localized transactional ledger engine:</p>
+            <pre>
+Input Payload: sessionId=ATUid_123&networkCode=MINER1&text=1*0x1F9...
+Engine Return: CON Balance verified. Account hold allocation: 10,000,000,000 SUSD</pre>
+        </div>
+    </div>
+</body>
+</html>
