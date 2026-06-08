@@ -5,7 +5,7 @@ import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'SEMHAL_SYSTEM_ENCRYPTION_KEY_SECRET'
 
-# Database Configuration (Uses the DATABASE_URL you set in Render)
+# Database Configuration (Uses the DATABASE_URL environment variable from Render)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -16,10 +16,9 @@ class Account(db.Model):
     address = db.Column(db.String(42), primary_key=True)
     balance = db.Column(db.Integer, default=1000000)
 
-# Initialize database
+# Initialize database and seed defaults
 with app.app_context():
     db.create_all()
-    # Ensure default accounts exist
     defaults = {
         "0x1F98431c8aD98523631AE4a59f267346ea31F984": 500000000,
         "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe": 1200000000,
@@ -30,7 +29,7 @@ with app.app_context():
             db.session.add(Account(address=addr, balance=bal))
     db.session.commit()
 
-# Helper for account lookup
+# Helper for account lookups
 def get_or_create_account(address):
     acc = Account.query.get(address)
     if not acc:
@@ -56,14 +55,29 @@ def explorer():
     ledger = {a.address: a.balance for a in accounts}
     return render_template('explorer.html', ledger=ledger)
 
-# --- AUTHENTICATION STATE OPERATIONS ---
+@app.route('/docs')
+def docs(): return render_template('docs.html')
+
+@app.route('/ussd')
+def ussd(): return render_template('ussd.html')
+
+@app.route('/core')
+def core(): return render_template('core.html')
+
+@app.route('/markets')
+def markets(): return render_template('markets.html')
+
+@app.route('/news')
+def news(): return render_template('news.html')
+
+# --- AUTHENTICATION ---
 
 @app.route('/auth/login', methods=['POST'])
 def auth_login():
     address = request.form.get('address', '').strip()
     password = request.form.get('password', '')
     if not address.startswith("0x") or len(address) != 42:
-        return jsonify({"status": "error", "message": "Invalid address"}), 400
+        return jsonify({"status": "error", "message": "Invalid address structure."}), 400
 
     role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
     session['node_address'] = address
@@ -76,13 +90,18 @@ def auth_logout():
     session.clear()
     return redirect(url_for('news'))
 
-# --- WORKSPACE ENDPOINTS ---
+# --- WORKSPACE ---
 
 @app.route('/portal/user')
 def user_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
     acc = Account.query.get(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
+
+@app.route('/portal/miner')
+def miner_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    return render_template('miner_portal.html', address=session['node_address'])
 
 @app.route('/portal/admin')
 def admin_portal():
@@ -91,10 +110,11 @@ def admin_portal():
     ledger = {a.address: a.balance for a in accounts}
     return render_template('admin_portal.html', ledger=ledger)
 
-# --- TRANSACTION API LAYER ACTIONS ---
+# --- TRANSACTION API ---
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
     sender = get_or_create_account(session['node_address'])
     recipient = get_or_create_account(request.form.get('recipient', '').strip())
     amount = int(request.form.get('amount', 0))
@@ -117,7 +137,7 @@ def api_mine_reward():
 
 @app.route('/api/admin/purge', methods=['POST'])
 def api_admin_purge():
-    if session.get('role') != 'Admin': return jsonify({"status": "error", "message": "Forbidden"}), 403
+    if session.get('role') != 'Admin': return jsonify({"status": "error"}), 403
     target = Account.query.get(request.form.get('target', '').strip())
     if target:
         db.session.delete(target)
