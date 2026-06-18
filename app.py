@@ -91,35 +91,34 @@ def user_portal():
     acc = Account.query.get(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
-@app.route('/portal/miner')
-def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('news'))
-    acc = get_or_create_account(session['node_address'])
-    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
-
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
     if 'node_address' not in session: 
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
-    # 1. Get the account
+    # 1. Fetch the record
     miner = Account.query.filter_by(address=session['node_address']).first()
+    
     if not miner:
-        miner = get_or_create_account(session['node_address'])
+        return jsonify({"status": "error", "message": "Account not found"}), 404
     
-    # 2. Add the reward
-    reward = 0.025
-    miner.balance += reward
+    # 2. Perform the math
+    new_balance = float(miner.balance) + 0.025
     
-    # 3. CRITICAL: Tell the session to track the change
-    db.session.add(miner) 
+    # 3. Force the update using query update (this bypasses object-tracking issues)
+    db.session.query(Account).filter(Account.address == session['node_address']).update({
+        "balance": new_balance
+    })
+    
+    # 4. Commit to the database
     db.session.commit()
     
     return jsonify({
         "status": "success", 
-        "reward": reward, 
-        "total": float(miner.balance)
+        "reward": 0.025, 
+        "total": new_balance
     })
+
 
 
 @app.route('/api/transfer', methods=['POST'])
