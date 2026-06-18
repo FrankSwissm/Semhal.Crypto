@@ -99,10 +99,7 @@ def user_portal():
 def api_mine_reward():
     if 'node_address' not in session: return jsonify({"status": "error"}), 401
     miner = get_or_create_account(session['node_address'])
-    
-    # Fixed reward constant
     reward = 0.025
-    
     miner.balance += reward
     db.session.commit()
     return jsonify({"status": "success", "reward": reward, "total": miner.balance})
