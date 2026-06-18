@@ -97,25 +97,30 @@ def miner_portal():
     acc = get_or_create_account(session['node_address'])
     return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
 
-@app.route('/portal/admin')
-def admin_portal():
-    if session.get('role') != 'Admin': return redirect(url_for('news'))
-    return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
-
-# --- API LAYER (FIXED FOR DB SYNC) ---
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    if 'node_address' not in session: 
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
-    # Query fresh to avoid stale object state
+    # 1. Get the account
     miner = Account.query.filter_by(address=session['node_address']).first()
     if not miner:
         miner = get_or_create_account(session['node_address'])
     
+    # 2. Add the reward
     reward = 0.025
     miner.balance += reward
+    
+    # 3. CRITICAL: Tell the session to track the change
+    db.session.add(miner) 
     db.session.commit()
-    return jsonify({"status": "success", "reward": reward, "total": float(miner.balance)})
+    
+    return jsonify({
+        "status": "success", 
+        "reward": reward, 
+        "total": float(miner.balance)
+    })
+
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
