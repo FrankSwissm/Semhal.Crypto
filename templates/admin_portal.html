@@ -13,6 +13,11 @@
         .ledger-table tr:not(:last-child) td { border-bottom: 1px solid rgba(255,255,255,0.05); }
         .purge-btn { background: rgba(255, 74, 74, 0.1); color: #ff4a4a; border: 1px solid #ff4a4a; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; }
         .purge-btn:hover { background: #ff4a4a; color: #000; font-weight: bold; }
+        
+        /* Admin Transfer Style */
+        .admin-transfer-box { background: var(--surface-card); border: 1px solid #ff4a4a; padding: 2rem; border-radius: 12px; margin-top: 2rem; }
+        .submit-input { width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid #ff4a4a; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        .action-btn { width: 100%; background: #ff4a4a; color: #fff; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; margin-top: 1rem; }
     </style>
 </head>
 <body>
@@ -40,6 +45,21 @@
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Modify active balance limits, evaluate account distributions, or purge non-compliant records from the network balance database.</p>
         </div>
 
+        <div class="admin-transfer-box">
+            <h3 style="color: #ff4a4a; font-family: var(--font-mono);">Admin Liquidity Injection</h3>
+            <form id="admin-transfer-form">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="color:#aaa;">Recipient Address</label>
+                    <input type="text" name="recipient" class="submit-input" placeholder="0x..." required>
+                </div>
+                <div class="form-group">
+                    <label style="color:#aaa;">Amount (sUSD)</label>
+                    <input type="number" name="amount" class="submit-input" placeholder="0.00" step="any" required>
+                </div>
+                <button type="submit" class="action-btn">Inject Liquidity</button>
+            </form>
+        </div>
+
         <h3 style="font-family: var(--font-mono); text-transform: uppercase; margin-top: 2rem;">Global Account Matrix</h3>
         <table class="ledger-table">
             <thead>
@@ -64,20 +84,32 @@
     </div>
 
     <script>
-        async function purgeNode(address, rowId) {
-            if (!confirm(`CRITICAL CONFIRMATION REQUIRED:\n\nAre you sure you want to completely remove account address ${address} from the ledger structure?`)) return;
-            
-            const formData = new FormData();
-            formData.append('target', address);
-            
-            const res = await fetch('/api/admin/purge', { method: 'POST', body: formData });
+        // Admin Transfer Script
+        document.getElementById('admin-transfer-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const res = await fetch('/api/transfer', { method: 'POST', body: formData });
             const data = await res.json();
             
             if (data.status === 'success') {
-                document.getElementById(rowId).remove();
-                alert('Account entry successfully pruned from local json ledger storage.');
+                alert('Liquidity successfully injected.');
+                location.reload();
             } else {
-                alert('Purge operation rejected: ' + data.message);
+                alert('Transaction Rejected: ' + data.message);
+            }
+        };
+
+        async function purgeNode(address, rowId) {
+            if (!confirm(`Are you sure you want to remove ${address}?`)) return;
+            const formData = new FormData();
+            formData.append('target', address);
+            const res = await fetch('/api/admin/purge', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.status === 'success') {
+                document.getElementById(rowId).remove();
+                alert('Purge successful.');
+            } else {
+                alert('Purge rejected: ' + data.message);
             }
         }
     </script>
