@@ -46,7 +46,7 @@ def inject_auth_status():
 @app.route('/')
 def home():
     total_nodes = Account.query.count()
-    total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0
+    total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0.00
     return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
 
 @app.route('/explorer')
