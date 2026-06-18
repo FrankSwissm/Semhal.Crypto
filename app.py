@@ -14,7 +14,7 @@ db = SQLAlchemy(app)
 class Account(db.Model):
     __tablename__ = 'accounts'
     address = db.Column(db.String(42), primary_key=True)
-    balance = db.Column(db.Integer, default=0.00)
+    balance = db.Column(db.Integer, default=0)
 
 # Initialize database and seed defaults
 with app.app_context():
@@ -33,7 +33,7 @@ with app.app_context():
 def get_or_create_account(address):
     acc = Account.query.get(address)
     if not acc:
-        acc = Account(address=address, balance=0.00)
+        acc = Account(address=address, balance=0)
         db.session.add(acc)
         db.session.commit()
     return acc
@@ -96,7 +96,7 @@ def auth_logout():
 def user_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
     acc = Account.query.get(session['node_address'])
-    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0.00)
+    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
 @app.route('/portal/miner')
 def miner_portal():
