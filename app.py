@@ -97,12 +97,17 @@ def user_portal():
     acc = Account.query.get(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
-@app.route('/portal/miner')
-def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('news'))
-    # Fetch account to ensure the template has access to the current balance
-    acc = get_or_create_account(session['node_address'])
-    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
+@app.route('/api/mine-reward', methods=['POST'])
+def api_mine_reward():
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    miner = get_or_create_account(session['node_address'])
+    
+    # Fixed reward constant
+    reward = 0.025
+    
+    miner.balance += reward
+    db.session.commit()
+    return jsonify({"status": "success", "reward": reward, "total": miner.balance})
 
 @app.route('/portal/admin')
 def admin_portal():
