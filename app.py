@@ -130,7 +130,7 @@ def api_transfer():
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
     miner = get_or_create_account(session['node_address'])
-    reward = 25000000
+    reward = 0.25
     miner.balance += reward
     db.session.commit()
     return jsonify({"status": "success", "reward": reward, "total": miner.balance})
