@@ -33,7 +33,7 @@ with app.app_context():
 def get_or_create_account(address):
     acc = Account.query.get(address)
     if not acc:
-        acc = Account(address=address, balance=1000000)
+        acc = Account(address=address, balance=0.00)
         db.session.add(acc)
         db.session.commit()
     return acc
