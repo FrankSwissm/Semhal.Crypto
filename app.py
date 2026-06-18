@@ -103,33 +103,24 @@ def admin_portal():
 # --- API LAYER ---
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
-    miner = get_or_create_account(session['node_address'])
+    if 'node_address' not in session: 
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    # Force a fresh query to ensure we aren't using a cached object
+    miner = Account.query.filter_by(address=session['node_address']).first()
+    if not miner:
+        miner = get_or_create_account(session['node_address'])
+    
     reward = 0.025
     miner.balance += reward
     db.session.commit()
-    return jsonify({"status": "success", "reward": reward, "total": miner.balance})
+    
+    return jsonify({
+        "status": "success", 
+        "reward": reward, 
+        "total": float(miner.balance) # Ensure it's a float
+    })
 
-@app.route('/api/transfer', methods=['POST'])
-def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
-    sender = get_or_create_account(session['node_address'])
-    recipient = get_or_create_account(request.form.get('recipient', '').strip())
-    try:
-        amount = float(request.form.get('amount', 0))
-    except ValueError:
-        return jsonify({"status": "error", "message": "Invalid amount"}), 400
-    
-    if session.get('role') != 'Admin':
-        if amount < 0.0000001:
-            return jsonify({"status": "error", "message": "Minimum send is 0.0000001"}), 400
-        if sender.balance < amount:
-            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
-        sender.balance -= amount
-    
-    recipient.balance += amount
-    db.session.commit()
-    return jsonify({"status": "success", "new_balance": sender.balance if session.get('role') != 'Admin' else 0})
 
 @app.route('/api/admin/purge', methods=['POST'])
 def api_admin_purge():
