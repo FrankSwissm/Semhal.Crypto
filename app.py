@@ -51,6 +51,22 @@ def home():
 def explorer():
     return render_template('explorer.html', ledger={a.address: a.balance for a in Account.query.all()})
 
+@app.route('/docs')
+def docs(): return render_template('docs.html')
+
+@app.route('/ussd')
+def ussd(): return render_template('ussd.html')
+
+@app.route('/core')
+def core(): return render_template('core.html')
+
+@app.route('/markets')
+def markets(): return render_template('markets.html')
+
+@app.route('/news')
+def news(): return render_template('news.html')
+
+# --- AUTH & PORTALS ---
 @app.route('/auth/login', methods=['POST'])
 def auth_login():
     address = request.form.get('address', '').strip()
@@ -65,20 +81,24 @@ def auth_login():
 @app.route('/auth/logout')
 def auth_logout():
     session.clear()
-    return redirect(url_for('home'))
+    return redirect(url_for('news'))
 
-# --- PORTALS ---
 @app.route('/portal/user')
 def user_portal():
-    if 'node_address' not in session: return redirect(url_for('home'))
+    if 'node_address' not in session: return redirect(url_for('news'))
     acc = Account.query.get(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
 @app.route('/portal/miner')
 def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('home'))
+    if 'node_address' not in session: return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
     return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
+
+@app.route('/portal/admin')
+def admin_portal():
+    if session.get('role') != 'Admin': return redirect(url_for('news'))
+    return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
 
 # --- API LAYER ---
 @app.route('/api/mine-reward', methods=['POST'])
@@ -110,6 +130,16 @@ def api_transfer():
     recipient.balance += amount
     db.session.commit()
     return jsonify({"status": "success", "new_balance": sender.balance if session.get('role') != 'Admin' else 0})
+
+@app.route('/api/admin/purge', methods=['POST'])
+def api_admin_purge():
+    if session.get('role') != 'Admin': return jsonify({"status": "error"}), 403
+    target = Account.query.get(request.form.get('target', '').strip())
+    if target:
+        db.session.delete(target)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error"}), 404
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8085)
