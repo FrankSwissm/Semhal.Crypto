@@ -5,15 +5,7 @@ import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'SEMHAL_SYSTEM_ENCRYPTION_KEY_SECRET'
 
-# Session Configuration
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_SECURE=False,
-    PERMANENT_SESSION_LIFETIME=3600
-)
-
-# --- DATABASE CONFIGURATION ---
+# Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -25,9 +17,9 @@ class Account(db.Model):
 
 # --- INITIALIZATION ---
 with app.app_context():
-    # 1. TEMPORARY: Keep this line ONLY FOR ONE DEPLOYMENT to fix the Integer/Float issue
-    # 2. AFTER THE FIRST SUCCESSFUL DEPLOY, DELETE THIS LINE AND RE-PUSH
-    db.drop_all() 
+    # Keep this for ONE deployment to fix the Integer vs Float issue
+    # AFTER SUCCESSFUL DEPLOY, DELETE THIS LINE AND PUSH AGAIN
+    db.drop_all()
     db.create_all()
 
 def get_or_create_account(address):
@@ -37,6 +29,11 @@ def get_or_create_account(address):
         db.session.add(acc)
         db.session.commit()
     return acc
+
+# --- GLOBAL MIDDLEWARE ---
+@app.context_processor
+def inject_auth_status():
+    return dict(is_logged_in='node_address' in session, current_role=session.get('role'))
 
 # --- NAVIGATION ROUTES ---
 @app.route('/')
@@ -48,6 +45,21 @@ def home():
 @app.route('/explorer')
 def explorer():
     return render_template('explorer.html', ledger={a.address: a.balance for a in Account.query.all()})
+
+@app.route('/docs')
+def docs(): return render_template('docs.html')
+
+@app.route('/ussd')
+def ussd(): return render_template('ussd.html')
+
+@app.route('/core')
+def core(): return render_template('core.html')
+
+@app.route('/markets')
+def markets(): return render_template('markets.html')
+
+@app.route('/news')
+def news(): return render_template('news.html')
 
 # --- AUTH & PORTALS ---
 @app.route('/auth/login', methods=['POST'])
@@ -68,50 +80,46 @@ def auth_logout():
 
 @app.route('/portal/user')
 def user_portal():
-    if 'node_address' not in session: return redirect(url_for('home'))
+    if 'node_address' not in session: return redirect(url_for('news'))
     acc = Account.query.get(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
 @app.route('/portal/miner')
 def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('home'))
+    if 'node_address' not in session: return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
     return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
+
+@app.route('/portal/admin')
+def admin_portal():
+    if session.get('role') != 'Admin': return redirect(url_for('news'))
+    return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
 
 # --- API LAYER ---
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
-    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
-    
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
     miner = Account.query.filter_by(address=session['node_address']).first()
-    if not miner:
-        miner = get_or_create_account(session['node_address'])
+    if not miner: miner = get_or_create_account(session['node_address'])
     
-    # Force float arithmetic
     new_balance = float(miner.balance) + 0.025
-    
     db.session.query(Account).filter(Account.address == session['node_address']).update({"balance": new_balance})
     db.session.commit()
-    
     return jsonify({"status": "success", "reward": 0.025, "total": new_balance})
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
-    
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
     sender = Account.query.filter_by(address=session['node_address']).first()
     recipient = get_or_create_account(request.form.get('recipient', '').strip())
     
     try:
         amount = float(request.form.get('amount', 0))
-    except ValueError:
-        return jsonify({"status": "error", "message": "Invalid amount"}), 400
+    except: return jsonify({"status": "error", "message": "Invalid amount"}), 400
     
     if session.get('role') != 'Admin':
-        if amount < 0.0000001:
-            return jsonify({"status": "error", "message": "Minimum send is 0.0000001"}), 400
-        if not sender or sender.balance < amount:
-            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
+        if amount < 0.0000001 or not sender or sender.balance < amount:
+            return jsonify({"status": "error", "message": "Insufficient/Invalid"}), 400
         sender.balance -= amount
     
     recipient.balance += amount
