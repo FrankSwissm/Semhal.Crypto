@@ -5,6 +5,7 @@ import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'SEMHAL_SYSTEM_ENCRYPTION_KEY_SECRET'
 
+# Database Setup
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -12,7 +13,6 @@ db = SQLAlchemy(app)
 class Account(db.Model):
     __tablename__ = 'accounts'
     address = db.Column(db.String(42), primary_key=True)
-    # Changed default to 0.0 to meet requirement
     balance = db.Column(db.Float, default=0.0)
 
 with app.app_context():
@@ -35,8 +35,65 @@ def get_or_create_account(address):
         db.session.commit()
     return acc
 
-# ... (Keep existing routes for /, /explorer, /docs, /ussd, /core, /markets, /news) ...
+# --- NAVIGATION ROUTES ---
+@app.route('/')
+def home():
+    total_nodes = Account.query.count()
+    total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0
+    return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
 
+@app.route('/explorer')
+def explorer():
+    return render_template('explorer.html', ledger={a.address: a.balance for a in Account.query.all()})
+
+@app.route('/docs')
+def docs(): return render_template('docs.html')
+
+@app.route('/ussd')
+def ussd(): return render_template('ussd.html')
+
+@app.route('/core')
+def core(): return render_template('core.html')
+
+@app.route('/markets')
+def markets(): return render_template('markets.html')
+
+@app.route('/news')
+def news(): return render_template('news.html')
+
+# --- AUTH & PORTALS ---
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    address = request.form.get('address', '').strip()
+    password = request.form.get('password', '')
+    role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
+    session['node_address'] = address
+    session['role'] = role
+    get_or_create_account(address)
+    return jsonify({"status": "success", "role": role, "redirect": f"/portal/{role.lower()}"})
+
+@app.route('/auth/logout')
+def auth_logout():
+    session.clear()
+    return redirect(url_for('news'))
+
+@app.route('/portal/user')
+def user_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    acc = Account.query.get(session['node_address'])
+    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
+
+@app.route('/portal/miner')
+def miner_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    return render_template('miner_portal.html', address=session['node_address'])
+
+@app.route('/portal/admin')
+def admin_portal():
+    if session.get('role') != 'Admin': return redirect(url_for('news'))
+    return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
+
+# --- API LAYER ---
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
     if 'node_address' not in session: return jsonify({"status": "error"}), 401
@@ -49,7 +106,7 @@ def api_transfer():
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid amount"}), 400
 
-    # Rule: Minimum send 0.05 sUSD (Admin can bypass)
+    # Minimum send rule (Admin bypass enabled)
     if session.get('role') != 'Admin' and amount < 0.05:
         return jsonify({"status": "error", "message": "Minimum send requirement is 0.05 sUSD"}), 400
 
@@ -65,10 +122,20 @@ def api_transfer():
 def api_mine_reward():
     if 'node_address' not in session: return jsonify({"status": "error"}), 401
     miner = get_or_create_account(session['node_address'])
-    # Updated reward to 0.025
     reward = 0.025
     miner.balance += reward
     db.session.commit()
     return jsonify({"status": "success", "reward": reward, "total": miner.balance})
 
-# ... (Keep remaining API routes) ...
+@app.route('/api/admin/purge', methods=['POST'])
+def api_admin_purge():
+    if session.get('role') != 'Admin': return jsonify({"status": "error"}), 403
+    target = Account.query.get(request.form.get('target', '').strip())
+    if target:
+        db.session.delete(target)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error"}), 404
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8085)
