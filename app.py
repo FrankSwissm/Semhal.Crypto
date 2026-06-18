@@ -119,7 +119,7 @@ def api_transfer():
     recipient = get_or_create_account(request.form.get('recipient', '').strip())
     amount = int(request.form.get('amount', 0))
 
-    if sender.address == recipient.address or sender.balance < amount or amount <= 0.5:
+    if sender.address == recipient.address or sender.balance < amount or amount <= 0.05:
         return jsonify({"status": "error", "message": "Invalid transaction"}), 400
 
     sender.balance -= amount
