@@ -46,7 +46,7 @@ def inject_auth_status():
 @app.route('/')
 def home():
     total_nodes = Account.query.count()
-    total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0.00
+    total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0
     return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
 
 @app.route('/explorer')
@@ -96,7 +96,7 @@ def auth_logout():
 def user_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
     acc = Account.query.get(session['node_address'])
-    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
+    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0.00)
 
 @app.route('/portal/miner')
 def miner_portal():
