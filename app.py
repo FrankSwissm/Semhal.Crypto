@@ -24,6 +24,7 @@ class Account(db.Model):
     balance = db.Column(db.Float, default=0.0)
 
 def get_or_create_account(address):
+    # Using session.merge or querying ensures we get the latest state
     acc = Account.query.get(address)
     if not acc:
         acc = Account(address=address, balance=0.0)
@@ -33,6 +34,7 @@ def get_or_create_account(address):
 
 # --- INITIALIZATION ---
 with app.app_context():
+    # Only create tables if they don't exist
     db.create_all()
 
 # --- GLOBAL MIDDLEWARE ---
@@ -100,13 +102,12 @@ def admin_portal():
     if session.get('role') != 'Admin': return redirect(url_for('news'))
     return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
 
-# --- API LAYER ---
+# --- API LAYER (FIXED FOR DB SYNC) ---
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
-    if 'node_address' not in session: 
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
     
-    # Force a fresh query to ensure we aren't using a cached object
+    # Query fresh to avoid stale object state
     miner = Account.query.filter_by(address=session['node_address']).first()
     if not miner:
         miner = get_or_create_account(session['node_address'])
@@ -114,13 +115,33 @@ def api_mine_reward():
     reward = 0.025
     miner.balance += reward
     db.session.commit()
-    
-    return jsonify({
-        "status": "success", 
-        "reward": reward, 
-        "total": float(miner.balance) # Ensure it's a float
-    })
+    return jsonify({"status": "success", "reward": reward, "total": float(miner.balance)})
 
+@app.route('/api/transfer', methods=['POST'])
+def api_transfer():
+    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    sender = Account.query.filter_by(address=session['node_address']).first()
+    recipient = get_or_create_account(request.form.get('recipient', '').strip())
+    
+    try:
+        amount = float(request.form.get('amount', 0))
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid amount"}), 400
+    
+    if session.get('role') != 'Admin':
+        if amount < 0.0000001:
+            return jsonify({"status": "error", "message": "Minimum send is 0.0000001"}), 400
+        if not sender or sender.balance < amount:
+            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
+        sender.balance -= amount
+    
+    recipient.balance += amount
+    db.session.add(sender) if sender else None
+    db.session.add(recipient)
+    db.session.commit()
+    
+    return jsonify({"status": "success", "new_balance": sender.balance if sender else 0})
 
 @app.route('/api/admin/purge', methods=['POST'])
 def api_admin_purge():
