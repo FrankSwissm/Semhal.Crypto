@@ -5,7 +5,15 @@ import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'SEMHAL_SYSTEM_ENCRYPTION_KEY_SECRET'
 
-# Database Setup
+# Session Persistence Configuration
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=False,
+    PERMANENT_SESSION_LIFETIME=3600
+)
+
+# Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -34,6 +42,11 @@ def get_or_create_account(address):
         db.session.add(acc)
         db.session.commit()
     return acc
+
+# --- GLOBAL MIDDLEWARE ---
+@app.context_processor
+def inject_auth_status():
+    return dict(is_logged_in='node_address' in session, current_role=session.get('role'))
 
 # --- NAVIGATION ROUTES ---
 @app.route('/')
@@ -67,6 +80,7 @@ def auth_login():
     address = request.form.get('address', '').strip()
     password = request.form.get('password', '')
     role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
+    session.permanent = True
     session['node_address'] = address
     session['role'] = role
     get_or_create_account(address)
@@ -96,7 +110,7 @@ def admin_portal():
 # --- API LAYER ---
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
     sender = get_or_create_account(session['node_address'])
     recipient = get_or_create_account(request.form.get('recipient', '').strip())
@@ -106,26 +120,26 @@ def api_transfer():
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid amount"}), 400
 
-    # Minimum send rule (Admin bypass enabled)
-    if session.get('role') != 'Admin' and amount < 0.05:
-        return jsonify({"status": "error", "message": "Minimum send requirement is 0.05 sUSD"}), 400
-
-    if sender.address == recipient.address or sender.balance < amount or amount <= 0:
-        return jsonify({"status": "error", "message": "Invalid transaction"}), 400
-
-    sender.balance -= amount
+    # Rule: Minimum send 0.05 sUSD (Admin bypass enabled)
+    if session.get('role') != 'Admin':
+        if amount < 0.05:
+            return jsonify({"status": "error", "message": "Minimum send is 0.05 sUSD"}), 400
+        if sender.balance < amount:
+            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
+        sender.balance -= amount
+    
+    # Admin logic: Admins inject without sender balance checks
     recipient.balance += amount
     db.session.commit()
-    return jsonify({"status": "success", "new_balance": sender.balance})
+    return jsonify({"status": "success", "new_balance": sender.balance if session.get('role') != 'Admin' else 0})
 
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
     if 'node_address' not in session: return jsonify({"status": "error"}), 401
     miner = get_or_create_account(session['node_address'])
-    reward = 0.025
-    miner.balance += reward
+    miner.balance += 0.025
     db.session.commit()
-    return jsonify({"status": "success", "reward": reward, "total": miner.balance})
+    return jsonify({"status": "success", "reward": 0.025, "total": miner.balance})
 
 @app.route('/api/admin/purge', methods=['POST'])
 def api_admin_purge():
