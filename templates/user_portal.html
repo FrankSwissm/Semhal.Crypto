@@ -59,23 +59,6 @@
                             <option value="kraken">Kraken</option>
                             <option value="crypto_com">Crypto.com</option>
                         </optgroup>
-                        <optgroup label="Professional & International Platforms">
-                            <option value="okx">OKX</option>
-                            <option value="bybit">Bybit</option>
-                            <option value="kucoin">KuCoin</option>
-                            <option value="bitstamp">Bitstamp</option>
-                            <option value="gemini">Gemini</option>
-                            <option value="bitget">Bitget</option>
-                            <option value="gate_io">Gate.io</option>
-                            <option value="mexc">MEXC</option>
-                            <option value="uphold">Uphold</option>
-                            <option value="robinhood">Robinhood Crypto</option>
-                            <option value="bitfinex">Bitfinex</option>
-                            <option value="cex_io">CEX.IO</option>
-                            <option value="bithumb">Bithumb</option>
-                            <option value="huobi">Huobi (HTX)</option>
-                            <option value="phemex">Phemex</option>
-                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group">
@@ -84,7 +67,7 @@
                 </div>
                 <div class="form-group">
                     <label>Transfer Amount (sUSD)</label>
-                    <input type="number" name="amount" class="submit-input" placeholder="0.05" min="0.05" required>
+                    <input type="number" name="amount" class="submit-input" placeholder="0.0000001" min="0.0000001" step="any" required>
                 </div>
                 <button type="submit" class="action-btn">Sign & Dispatch Transaction</button>
             </form>
@@ -95,11 +78,10 @@
         document.getElementById('transfer-form').onsubmit = async (e) => {
             e.preventDefault();
             const addr = document.getElementById('recipient-addr').value;
-            const exchange = document.getElementById('exchange-select').value;
             
-            // Standard validation for address format
+            // Format Validation
             if (!addr.startsWith('0x') || addr.length !== 42) {
-                alert(`Invalid address for ${exchange.toUpperCase()}. Must be a valid 0x Ethereum-style address.`);
+                alert('Invalid address format. Must be a 42-character 0x Ethereum-style address.');
                 return;
             }
 
@@ -108,7 +90,7 @@
             const data = await res.json();
             
             if (data.status === 'success') {
-                alert('Transaction compiled, signed, and successfully settled onto the block ledger!');
+                alert('Transaction successfully settled onto the block ledger!');
                 document.getElementById('current-balance').innerHTML = `${data.new_balance} <span style="font-size:1.5rem; color:#fff;">sUSD</span>`;
                 e.target.reset();
             } else {
