@@ -97,12 +97,34 @@ def user_portal():
 
 @app.route('/api/mine-reward', methods=['POST'])
 def api_mine_reward():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    """
+    Handles mining rewards with a fixed 0.025 sUSD payout.
+    Ensures the user is authorized before granting the reward.
+    """
+    # 1. Authorization Check
+    if 'node_address' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    # 2. Retrieve account from database
     miner = get_or_create_account(session['node_address'])
+    
+    # 3. Apply fixed mining reward (Constant)
     reward = 0.025
     miner.balance += reward
-    db.session.commit()
-    return jsonify({"status": "success", "reward": reward, "total": miner.balance})
+    
+    # 4. Commit to database
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Database transaction failed"}), 500
+        
+    return jsonify({
+        "status": "success", 
+        "reward": reward, 
+        "total": miner.balance
+    })
+
 
 @app.route('/portal/admin')
 def admin_portal():
