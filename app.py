@@ -126,11 +126,12 @@ def api_transfer():
         amount = float(request.form.get('amount', 0))
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid amount"}), 400
+    
 
-    # Rule: Minimum send 0.05 sUSD (Admin bypass enabled)
+    # Rule: Minimum send 0.0000001 sUSD (Admin bypass enabled)
     if session.get('role') != 'Admin':
         if amount < 0.05:
-            return jsonify({"status": "error", "message": "Minimum send is 0.05 sUSD"}), 400
+            return jsonify({"status": "error", "message": "Minimum send is 0.0000001 sUSD"}), 400
         if sender.balance < amount:
             return jsonify({"status": "error", "message": "Insufficient balance"}), 400
         sender.balance -= amount
