@@ -14,36 +14,32 @@ app.config.update(
 )
 
 # --- DATABASE INITIALIZATION ---
-db = SQLAlchemy(app)
+from flask_sqlalchemy import SQLAlchemy
+import os
 
-class Account(db.Model):
-    __tablename__ = 'accounts'
-    address = db.Column(db.String(42), primary_key=True)
-    balance = db.Column(db.Float, default=0.0)
+db = SQLAlchemy()
 
-def init_db():
-    """Initializes the database schema and default accounts."""
+def init_app_database(app):
+    """Call this function once when the app is initialized."""
     with app.app_context():
-        try:
-            db.create_all()
-            defaults = {
-                "0x1F98431c8aD98523631AE4a59f267346ea31F984": 500000000.0,
-                "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe": 1200000000.0,
-                "0x71C7656EC7ab88b098defB751B7401B5f6d1476B": 350000000.0
-            }
-            for addr, bal in defaults.items():
-                if not Account.query.get(addr):
-                    db.session.add(Account(address=addr, balance=bal))
-            db.session.commit()
-            print("Database initialized successfully.")
-        except Exception as e:
-            print(f"Database initialization failed: {e}")
+        db.create_all()
+        defaults = {
+            "0x1F98431c8aD98523631AE4a59f267346ea31F984": 500000000.0,
+            "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe": 1200000000.0,
+            "0x71C7656EC7ab88b098defB751B7401B5f6d1476B": 350000000.0
+        }
+        for addr, bal in defaults.items():
+            if not Account.query.get(addr):
+                db.session.add(Account(address=addr, balance=bal))
+        db.session.commit()
 
-# Call this if this is the main process
-if __name__ == "__main__":
-    init_db()
-    app.run(host='0.0.0.0', port=8085)
+# --- Inside your main app setup ---
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+db.init_app(app) # Initialize the extension safely
 
+# DO NOT put the 'with app.app_context()' block here.
+  
 
 # --- GLOBAL MIDDLEWARE ---
 @app.context_processor
