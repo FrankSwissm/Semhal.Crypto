@@ -130,7 +130,7 @@ def api_transfer():
 
     # Rule: Minimum send 0.0000001 sUSD (Admin bypass enabled)
     if session.get('role') != 'Admin':
-        if amount < 0.05:
+        if amount < 0.0000001:
             return jsonify({"status": "error", "message": "Minimum send is 0.0000001 sUSD"}), 400
         if sender.balance < amount:
             return jsonify({"status": "error", "message": "Insufficient balance"}), 400
