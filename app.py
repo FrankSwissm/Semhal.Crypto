@@ -13,9 +13,7 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=3600
 )
 
-# Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# --- DATABASE INITIALIZATION ---
 db = SQLAlchemy(app)
 
 class Account(db.Model):
@@ -23,25 +21,29 @@ class Account(db.Model):
     address = db.Column(db.String(42), primary_key=True)
     balance = db.Column(db.Float, default=0.0)
 
-with app.app_context():
-    db.create_all()
-    defaults = {
-        "0x1F98431c8aD98523631AE4a59f267346ea31F984": 500000000.0,
-        "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe": 1200000000.0,
-        "0x71C7656EC7ab88b098defB751B7401B5f6d1476B": 350000000.0
-    }
-    for addr, bal in defaults.items():
-        if not Account.query.get(addr):
-            db.session.add(Account(address=addr, balance=bal))
-    db.session.commit()
+def init_db():
+    """Initializes the database schema and default accounts."""
+    with app.app_context():
+        try:
+            db.create_all()
+            defaults = {
+                "0x1F98431c8aD98523631AE4a59f267346ea31F984": 500000000.0,
+                "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe": 1200000000.0,
+                "0x71C7656EC7ab88b098defB751B7401B5f6d1476B": 350000000.0
+            }
+            for addr, bal in defaults.items():
+                if not Account.query.get(addr):
+                    db.session.add(Account(address=addr, balance=bal))
+            db.session.commit()
+            print("Database initialized successfully.")
+        except Exception as e:
+            print(f"Database initialization failed: {e}")
 
-def get_or_create_account(address):
-    acc = Account.query.get(address)
-    if not acc:
-        acc = Account(address=address, balance=0.0)
-        db.session.add(acc)
-        db.session.commit()
-    return acc
+# Call this if this is the main process
+if __name__ == "__main__":
+    init_db()
+    app.run(host='0.0.0.0', port=8085)
+
 
 # --- GLOBAL MIDDLEWARE ---
 @app.context_processor
