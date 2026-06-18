@@ -14,7 +14,7 @@ db = SQLAlchemy(app)
 class Account(db.Model):
     __tablename__ = 'accounts'
     address = db.Column(db.String(42), primary_key=True)
-    balance = db.Column(db.Integer, default=1000000)
+    balance = db.Column(db.Integer, default=0.00)
 
 # Initialize database and seed defaults
 with app.app_context():
