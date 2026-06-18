@@ -100,7 +100,9 @@ def user_portal():
 @app.route('/portal/miner')
 def miner_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
-    return render_template('miner_portal.html', address=session['node_address'])
+    # Fetch account to ensure the template has access to the current balance
+    acc = get_or_create_account(session['node_address'])
+    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
 
 @app.route('/portal/admin')
 def admin_portal():
