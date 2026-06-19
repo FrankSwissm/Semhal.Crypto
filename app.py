@@ -17,18 +17,16 @@ class Account(db.Model):
 
 # --- INITIALIZATION ---
 with app.app_context():
-    # Keep this for ONE deployment to fix the Integer vs Float issue
-    # AFTER SUCCESSFUL DEPLOY, DELETE THIS LINE AND PUSH AGAIN
-    db.drop_all()
+    # create_all() only creates tables if they don't exist.
+    # It does NOT delete existing data, so it is safe to keep.
     db.create_all()
+    
+    # Optional: If you want to ensure default accounts exist,
+    # wrap it in a check so you don't overwrite user balances.
+    if not Account.query.first():
+        # You can add your default accounts here if needed
+        pass
 
-def get_or_create_account(address):
-    acc = Account.query.get(address)
-    if not acc:
-        acc = Account(address=address, balance=0.0)
-        db.session.add(acc)
-        db.session.commit()
-    return acc
 
 # --- GLOBAL MIDDLEWARE ---
 @app.context_processor
