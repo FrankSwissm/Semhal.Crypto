@@ -64,23 +64,21 @@ def news(): return render_template('news.html')
 def auth_login():
     address = request.form.get('address', '').strip()
     password = request.form.get('password', '')
+    
+    # Simple role assignment
     role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
+    
+    # Store in session
     session.permanent = True
     session['node_address'] = address
     session['role'] = role
+    
+    # Ensure account exists in DB
     get_or_create_account(address)
-    return jsonify({"status": "success", "role": role, "redirect": f"/portal/{role.lower()}"})
+    
+    # Return JSON for the frontend script to handle the redirect
+    return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
-@app.route('/auth/logout')
-def auth_logout():
-    session.clear()
-    return redirect(url_for('home'))
-
-@app.route('/portal/user')
-def user_portal():
-    if 'node_address' not in session: return redirect(url_for('news'))
-    acc = Account.query.get(session['node_address'])
-    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance if acc else 0)
 
 @app.route('/portal/miner')
 def miner_portal():
