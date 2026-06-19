@@ -17,16 +17,15 @@ class Account(db.Model):
 
 # --- INITIALIZATION ---
 with app.app_context():
-    # create_all() only creates tables if they don't exist.
-    # It does NOT delete existing data, so it is safe to keep.
     db.create_all()
-    
-    # Optional: If you want to ensure default accounts exist,
-    # wrap it in a check so you don't overwrite user balances.
-    if not Account.query.first():
-        # You can add your default accounts here if needed
-        pass
 
+def get_or_create_account(address):
+    acc = Account.query.get(address)
+    if not acc:
+        acc = Account(address=address, balance=0.0)
+        db.session.add(acc)
+        db.session.commit()
+    return acc
 
 # --- GLOBAL MIDDLEWARE ---
 @app.context_processor
@@ -42,12 +41,9 @@ def home():
 
 @app.route('/explorer')
 def explorer():
-    # Force a fresh query of all accounts
     all_accounts = Account.query.all()
-    # Create the dictionary
     ledger = {acc.address: acc.balance for acc in all_accounts}
     return render_template('explorer.html', ledger=ledger)
-
 
 @app.route('/docs')
 def docs(): return render_template('docs.html')
@@ -69,21 +65,23 @@ def news(): return render_template('news.html')
 def auth_login():
     address = request.form.get('address', '').strip()
     password = request.form.get('password', '')
-    
-    # Simple role assignment
     role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
-    
-    # Store in session
     session.permanent = True
     session['node_address'] = address
     session['role'] = role
-    
-    # Ensure account exists in DB
     get_or_create_account(address)
-    
-    # Return JSON for the frontend script to handle the redirect
     return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
+@app.route('/auth/logout')
+def auth_logout():
+    session.clear()
+    return redirect(url_for('home'))
+
+@app.route('/portal/user')
+def user_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    acc = get_or_create_account(session['node_address'])
+    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance)
 
 @app.route('/portal/miner')
 def miner_portal():
