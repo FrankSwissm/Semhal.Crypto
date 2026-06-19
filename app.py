@@ -42,7 +42,12 @@ def home():
 
 @app.route('/explorer')
 def explorer():
-    return render_template('explorer.html', ledger={a.address: a.balance for a in Account.query.all()})
+    # Force a fresh query of all accounts
+    all_accounts = Account.query.all()
+    # Create the dictionary
+    ledger = {acc.address: acc.balance for acc in all_accounts}
+    return render_template('explorer.html', ledger=ledger)
+
 
 @app.route('/docs')
 def docs(): return render_template('docs.html')
