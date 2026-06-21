@@ -16,9 +16,9 @@
         .action-btn { width: 100%; background: var(--accent-cyan); color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.9rem; }
         .submit-input { width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glow); color: #fff; border-radius: 4px; box-sizing: border-box; }
         
-        /* Receipt Modal Styles */
+        /* Expanded Receipt Modal Styles */
         #receipt-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-card { background: #161b22; padding: 2rem; border: 1px solid var(--accent-cyan); border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
+        .modal-card { background: #161b22; padding: 2.5rem; border: 1px solid var(--accent-cyan); border-radius: 12px; width: 90%; max-width: 500px; min-height: 350px; text-align: center; }
     </style>
 </head>
 <body>
@@ -74,15 +74,15 @@
 
     <div id="receipt-modal">
         <div class="modal-card">
-            <h2 style="color: var(--accent-cyan);">SEMHAL CRYPTOCURRENCY</h2>
-            <p style="color: #fff; font-size: 0.9rem; margin-bottom: 1.5rem;">Transaction successfully settled onto the block ledger!</p>
-            <div style="text-align: left; font-family: monospace; color: #a4a8b6; font-size: 0.85rem; line-height: 1.6;">
-                <p><strong>Sender:</strong> <span id="r-sender" style="color: #fff;">{{ address }}</span></p>
-                <p><strong>Receiver:</strong> <span id="r-receiver" style="color: #fff;"></span></p>
+            <h2 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">SEMHAL CRYPTOCURRENCY</h2>
+            <p style="color: #fff; font-size: 1rem; margin-bottom: 2rem;">Transaction successfully settled onto the block ledger!</p>
+            <div style="text-align: left; font-family: monospace; color: #a4a8b6; font-size: 0.95rem; line-height: 2;">
+                <p><strong>Sender:</strong> <span id="r-sender" style="color: #fff; word-break: break-all;">{{ address }}</span></p>
+                <p><strong>Receiver:</strong> <span id="r-receiver" style="color: #fff; word-break: break-all;"></span></p>
                 <p><strong>Amount:</strong> <span id="r-amount" style="color: #fff;"></span> sUSD</p>
                 <p><strong>Date:</strong> <span id="r-date" style="color: #fff;"></span></p>
             </div>
-            <button class="action-btn" style="margin-top: 1.5rem;" onclick="document.getElementById('receipt-modal').style.display='none'">OK</button>
+            <button class="action-btn" style="margin-top: 2.5rem;" onclick="document.getElementById('receipt-modal').style.display='none'">CLOSE RECEIPT</button>
         </div>
     </div>
 
@@ -103,15 +103,12 @@
             const data = await res.json();
             
             if (data.status === 'success') {
-                // Populate Modal Fields
                 document.getElementById('r-receiver').innerText = recipient;
                 document.getElementById('r-amount').innerText = amount;
                 document.getElementById('r-date').innerText = now;
                 
-                // Show Modal
                 document.getElementById('receipt-modal').style.display = 'flex';
                 
-                // Update Balance
                 document.getElementById('current-balance').innerHTML = `${data.new_balance} <span style="font-size:1.5rem; color:#fff;">sUSD</span>`;
                 e.target.reset();
             } else {
