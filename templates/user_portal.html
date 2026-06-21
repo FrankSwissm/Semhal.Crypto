@@ -16,7 +16,7 @@
         .action-btn { width: 100%; background: var(--accent-cyan); color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.9rem; }
         .submit-input { width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glow); color: #fff; border-radius: 4px; box-sizing: border-box; }
         
-        /* Modal Styles for Receipt */
+        /* Receipt Modal Styles */
         #receipt-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
         .modal-card { background: #161b22; padding: 2rem; border: 1px solid var(--accent-cyan); border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
     </style>
@@ -75,17 +75,25 @@
     <div id="receipt-modal">
         <div class="modal-card">
             <h2 style="color: var(--accent-cyan);">SEMHAL CRYPTOCURRENCY</h2>
-            <p style="font-family: monospace; font-size: 0.9rem; margin: 1rem 0;">Transaction successfully settled onto the block ledger!</p>
-            <button class="action-btn" onclick="document.getElementById('receipt-modal').style.display='none'">OK</button>
+            <p style="color: #fff; font-size: 0.9rem; margin-bottom: 1.5rem;">Transaction successfully settled onto the block ledger!</p>
+            <div style="text-align: left; font-family: monospace; color: #a4a8b6; font-size: 0.85rem; line-height: 1.6;">
+                <p><strong>Sender:</strong> <span id="r-sender" style="color: #fff;">{{ address }}</span></p>
+                <p><strong>Receiver:</strong> <span id="r-receiver" style="color: #fff;"></span></p>
+                <p><strong>Amount:</strong> <span id="r-amount" style="color: #fff;"></span> sUSD</p>
+                <p><strong>Date:</strong> <span id="r-date" style="color: #fff;"></span></p>
+            </div>
+            <button class="action-btn" style="margin-top: 1.5rem;" onclick="document.getElementById('receipt-modal').style.display='none'">OK</button>
         </div>
     </div>
 
     <script>
         document.getElementById('transfer-form').onsubmit = async (e) => {
             e.preventDefault();
-            const addr = document.getElementById('recipient-addr').value;
+            const recipient = document.getElementById('recipient-addr').value;
+            const amount = document.getElementById('amount-input').value;
+            const now = new Date().toLocaleString();
             
-            if (!addr.startsWith('0x') || addr.length !== 42) {
+            if (!recipient.startsWith('0x') || recipient.length !== 42) {
                 alert('Invalid address format. Must be a 42-character 0x Ethereum-style address.');
                 return;
             }
@@ -95,7 +103,15 @@
             const data = await res.json();
             
             if (data.status === 'success') {
+                // Populate Modal Fields
+                document.getElementById('r-receiver').innerText = recipient;
+                document.getElementById('r-amount').innerText = amount;
+                document.getElementById('r-date').innerText = now;
+                
+                // Show Modal
                 document.getElementById('receipt-modal').style.display = 'flex';
+                
+                // Update Balance
                 document.getElementById('current-balance').innerHTML = `${data.new_balance} <span style="font-size:1.5rem; color:#fff;">sUSD</span>`;
                 e.target.reset();
             } else {
