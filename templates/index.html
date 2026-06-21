@@ -83,8 +83,6 @@
     <script>
         // --- 1. CONFIGURING THE REAL-TIME ACTIVITY GRAPH ---
         const ctxActivity = document.getElementById('activityChart').getContext('2d');
-        
-        // Populate static intervals for tracking labels (e.g., historical timelines)
         const timeLabels = ['60s ago', '50s ago', '40s ago', '30s ago', '20s ago', '10s ago', 'Current'];
         let initialActivityData = [12, 19, 15, 28, 22, 34, 25];
 
@@ -102,7 +100,7 @@
                     pointBorderColor: '#fff',
                     pointRadius: 4,
                     fill: true,
-                    tension: 0.3 // Gives it a futuristic smooth curve flow
+                    tension: 0.3
                 }]
             },
             options: {
@@ -116,33 +114,23 @@
             }
         });
 
-        // Simulate continuous active data ingestion feed over the network interface
         setInterval(() => {
-            // Remove the oldest data point index
             initialActivityData.shift();
-            // Generate a realistic dynamic transaction threshold spike between 15 and 45 TPS
             const nextTxMetric = Math.floor(Math.random() * (45 - 15 + 1)) + 15;
             initialActivityData.push(nextTxMetric);
-            
-            // Re-render canvas layers smoothly
             activityChart.update();
         }, 3000);
-
 
         // --- 2. CONFIGURING THE LEDGER ALLOCATION PROFILE CHART ---
         const ctxDistribution = document.getElementById('distributionChart').getContext('2d');
         
-        // Async API fetch call to safely grab real active parameters from your backend json ledger
         async function renderDistributionChart() {
             try {
                 const res = await fetch('/api/balances');
                 const data = await res.json();
                 
-                // Extract public addresses and their matching balances dynamically
                 const accounts = Object.keys(data.accounts);
                 const balances = Object.values(data.accounts);
-                
-                // Shorten lengthy public hex values for cleaner dashboard presentation layout
                 const shortAddresses = accounts.map(addr => addr.substring(0, 6) + '...' + addr.substring(38));
 
                 new Chart(ctxDistribution, {
@@ -183,8 +171,28 @@
             }
         }
 
-        // Initialize distribution display layer on runtime boot
         renderDistributionChart();
+
+        // --- 3. RE-ARCHITECTED SYSTEM TRANSACTION RECEIPT EMITTER ---
+        function emitTransactionReceipt(sender, receiver, amountUnits, valueSUSD) {
+            const timestamp = new Date().toLocaleString();
+            
+            alert(
+                `SEMHAL CRYPTOCURRENCY\n\n` +
+                `Send full public address:\n${sender}\n\n` +
+                `Reciver full public address:\n${receiver}\n\n` +
+                `Amout transfer:\n${amountUnits.toLocaleString()} Shards (${valueSUSD.toFixed(2)} SUSD)\n\n` +
+                `Date:\n${timestamp}`
+            );
+        }
+
+        // Attach transaction listener matrix internally for testing pipeline routing
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'SEMHAL_TX_COMPLETE') {
+                const { sender, receiver, amount, value } = event.data.payload;
+                emitTransactionReceipt(sender, receiver, amount, value);
+            }
+        });
     </script>
 </body>
 </html>
