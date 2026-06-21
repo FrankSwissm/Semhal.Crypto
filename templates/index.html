@@ -100,7 +100,7 @@
                     pointBorderColor: '#fff',
                     pointRadius: 4,
                     fill: true,
-                    tension: 0.3
+                    tension: 0.3 
                 }]
             },
             options: {
@@ -120,6 +120,7 @@
             initialActivityData.push(nextTxMetric);
             activityChart.update();
         }, 3000);
+
 
         // --- 2. CONFIGURING THE LEDGER ALLOCATION PROFILE CHART ---
         const ctxDistribution = document.getElementById('distributionChart').getContext('2d');
@@ -173,24 +174,26 @@
 
         renderDistributionChart();
 
-        // --- 3. RE-ARCHITECTED SYSTEM TRANSACTION RECEIPT EMITTER ---
-        function emitTransactionReceipt(sender, receiver, amountUnits, valueSUSD) {
-            const timestamp = new Date().toLocaleString();
-            
+
+        // --- 3. EXPLICIT SIGN-AND-DISPATCH TRANSACTION POP-UP RE-ARCHITECTURE ---
+        function executeTransactionReceipt(sender, receiver, amountTransfer) {
+            const currentTimestamp = new Date().toLocaleString();
+
+            // Renders the exact text formatting array requested upon settlement dispatch completion
             alert(
-                `SEMHAL CRYPTOCURRENCY\n\n` +
-                `Send full public address:\n${sender}\n\n` +
-                `Reciver full public address:\n${receiver}\n\n` +
-                `Amout transfer:\n${amountUnits.toLocaleString()} Shards (${valueSUSD.toFixed(2)} SUSD)\n\n` +
-                `Date:\n${timestamp}`
+                `SEMHAL CERYPTOCURRENCY\n\n` +
+                `Send full public address\n${sender}\n\n` +
+                `Reciver full public address\n${receiver}\n\n` +
+                `Amout transfer\n${amountTransfer}\n\n` +
+                `Date\n${currentTimestamp}`
             );
         }
 
-        // Attach transaction listener matrix internally for testing pipeline routing
+        // Global pipeline handler to capture internal, wallet, or USSD gateway trade dispatches
         window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'SEMHAL_TX_COMPLETE') {
-                const { sender, receiver, amount, value } = event.data.payload;
-                emitTransactionReceipt(sender, receiver, amount, value);
+            if (event.data && (event.data.type === 'SEMHAL_TX_COMPLETE' || event.data.action === 'dispatch')) {
+                const { sender, receiver, amount } = event.data.payload || event.data;
+                executeTransactionReceipt(sender, receiver, amount);
             }
         });
     </script>
