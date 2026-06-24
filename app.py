@@ -30,11 +30,13 @@ def get_or_create_account(address):
         db.session.commit()
     return acc
 
+# --- GLOBAL CONTEXT FOR NAVIGATION ---
 @app.context_processor
 def inject_user_info():
+    # This makes user_address, user_role, and is_authenticated available to ALL pages
     return dict(
         user_address=session.get('node_address'),
-        user_role=session.get('role'),
+        user_role=str(session.get('role', 'user')).lower(),
         is_authenticated=('node_address' in session)
     )
 
@@ -63,37 +65,32 @@ def markets(): return render_template('markets.html')
 @app.route('/news')
 def news(): return render_template('news.html')
 
-# --- GLOBAL CONTEXT ---
-@app.context_processor
-def inject_user_info():
-    # Force lowercase here so the template code is always safe
-    role = session.get('role', 'user')
-    return dict(
-        user_address=session.get('node_address'),
-        user_role=role.lower(), # Now it is always lowercase
-        is_authenticated=('node_address' in session)
-    )
-
-
-# --- PORTALS ---
+# --- PORTAL ROUTES ---
 @app.route('/portal/user')
 def user_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
-    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance)
+    return render_template('user_portal.html', address=acc.address, balance=acc.balance)
 
 @app.route('/portal/miner')
 def miner_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
-    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
+    return render_template('miner_portal.html', address=acc.address, balance=acc.balance)
 
 @app.route('/portal/admin')
 def admin_portal():
     if session.get('role') != 'Admin': return redirect(url_for('news'))
     return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
 
-# --- AUTH & API LAYER ---
+@app.route('/portal/organization')
+def organization_portal():
+    if session.get('role') != 'Organization': return redirect(url_for('news'))
+    acc = get_or_create_account(session['node_address'])
+    if not acc.password_changed: return redirect(url_for('change_password_page'))
+    return render_template('organization_portal.html', address=acc.address, balance=acc.balance)
+
+# --- AUTH & API ---
 @app.route('/auth/login', methods=['POST'])
 def auth_login():
     address = request.form.get('address', '').strip()
@@ -121,16 +118,13 @@ def api_ai_monitor():
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
-    if 'node_address' not in session: 
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
     MIN_TRANSFER = 0.0000001
     sender = get_or_create_account(session['node_address'])
     recipient_addr = request.form.get('recipient', '').strip()
     
-    if not recipient_addr:
-        return jsonify({"status": "error", "message": "Invalid recipient"}), 400
-        
+    if not recipient_addr: return jsonify({"status": "error", "message": "No recipient"}), 400
     recipient = get_or_create_account(recipient_addr)
     
     try:
@@ -140,7 +134,7 @@ def api_transfer():
     if amount < MIN_TRANSFER:
         return jsonify({"status": "error", "message": f"Min transfer: {MIN_TRANSFER}"}), 400
     
-    # ADMIN LOGIC: Admin does not need balance to send
+    # ADMIN LOGIC: Admins can distribute without having the balance
     if session.get('role') != 'Admin':
         if sender.balance < amount:
             return jsonify({"status": "error", "message": "Insufficient balance"}), 400
