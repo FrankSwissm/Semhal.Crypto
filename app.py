@@ -89,11 +89,22 @@ def change_password_page():
         return redirect(url_for('news'))
     
     if request.method == 'POST':
+        new_pass = request.form.get('new_password')
+        
+        # Security Check: Ensure new password is not the original portal password
+        if new_pass == "Organization@portal":
+            return render_template('change_password.html', error="New password cannot be the default portal password.")
+        
+        # Update Database
         acc = get_or_create_account(session['node_address'])
         acc.password_changed = True
         db.session.commit()
+        
+        # Correct Redirect: Send back to the organization portal
         return redirect(url_for('organization_portal'))
+        
     return render_template('change_password.html')
+
 
 @app.route('/auth/logout')
 def auth_logout():
