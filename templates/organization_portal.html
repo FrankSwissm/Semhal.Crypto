@@ -5,33 +5,58 @@
     <title>ORG PORTAL // Semhal Ledger</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .portal-container { max-width: 1000px; margin: 3rem auto; padding: 1rem; }
+        body { background-color: #0d1117; color: #fff; font-family: sans-serif; margin: 0; }
+        .portal-container { max-width: 1100px; margin: 3rem auto; padding: 0 1rem; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .box { background: #161b22; border: 1px solid #30363d; padding: 2rem; border-radius: 12px; }
-        .submit-input { width: 100%; padding: 0.8rem; background: #0d1117; border: 1px solid #00f2ff; color: #fff; margin-bottom: 1rem; }
-        .table-style { width: 100%; border-collapse: collapse; margin-top: 1rem; color: #fff; }
-        .table-style th { border-bottom: 2px solid #00f2ff; padding: 10px; }
-        .table-style td { padding: 10px; border-bottom: 1px solid #30363d; }
+        .submit-input { width: 100%; padding: 0.8rem; background: #0d1117; border: 1px solid #00f2ff; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 1rem; }
+        .action-btn { width: 100%; background: #00f2ff; color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase; }
+        .table-style { width: 100%; border-collapse: collapse; margin-top: 1rem; color: #c9d1d9; }
+        .table-style th { border-bottom: 2px solid #00f2ff; padding: 12px; text-align: left; }
+        .table-style td { padding: 12px; border-bottom: 1px solid #30363d; }
     </style>
 </head>
 <body>
-    <div class="portal-container">
-        <h1>Organization Dashboard</h1>
-        <p>Wallet: {{ address }} | Balance: {{ balance }} sUSD</p>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+        <div class="auth-nav-block">
+            <a href="/portal/organization" class="runtime-badge" style="text-decoration:none; background: rgba(0, 242, 255, 0.2); border-color: #00f2ff; color: #00f2ff;">ORG PORTAL</a>
+            <a href="/auth/logout" class="logout-btn">Disconnect</a>
+        </div>
+    </header>
+
+    <div class="container portal-container">
+        <div style="margin-bottom: 2rem;">
+            <h1>Organization Management Console</h1>
+            <p style="color: #8b949e;">Secure Node: <span style="font-family: monospace; color: #00f2ff;">{{ address }}</span> | Balance: <strong>{{ balance }} sUSD</strong></p>
+        </div>
 
         <div class="grid">
             <div class="box">
-                <h3>Bulk Payment</h3>
+                <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Payroll & Bulk Dispatch</h3>
+                <label>CSV Bulk Upload</label>
                 <input type="file" id="csvFile" accept=".csv" class="submit-input">
-                <textarea id="manualInput" class="submit-input" placeholder="0xAddress,Amount (one per line)" rows="5"></textarea>
-                <button class="action-btn" onclick="processBulk()">DISPATCH ALL</button>
+                <label>Manual Batch (Address,Amount)</label>
+                <textarea id="manualInput" class="submit-input" placeholder="0x...,10.5&#10;0x...,20.0" rows="5"></textarea>
+                <button class="action-btn" onclick="processBulk()">EXECUTE PAYMENTS</button>
             </div>
 
             <div class="box">
-                <h3>Payment History</h3>
+                <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Recent Ledger Activity</h3>
                 <table class="table-style" id="historyTable">
-                    <thead><tr><th>Recipient</th><th>Amount</th><th>Status</th><th>PDF</th></tr></thead>
-                    <tbody></tbody>
+                    <thead><tr><th>Recipient</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr><td colspan="4" style="text-align:center; color:#8b949e;">No recent transactions.</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -39,13 +64,7 @@
 
     <script>
         async function processBulk() {
-            // Logic to parse textarea, call /api/transfer for each line
-            alert("Executing batch transfer...");
-        }
-        
-        // Mock PDF Printer
-        function generatePDF(txId) {
-            window.print(); // Simplest way to trigger browser PDF print
+            alert("Dispatching batch transactions to the ledger...");
         }
     </script>
 </body>
