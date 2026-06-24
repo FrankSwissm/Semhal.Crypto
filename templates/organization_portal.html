@@ -36,9 +36,10 @@
 
     <div class="container portal-container">
         <h1>Organization Management Console</h1>
-        <p style="color: #8b949e;">Secure Node: <span style="font-family: monospace; color: #00f2ff;">{{ address }}</span> | Balance: <strong>{{ balance }} sUSD</strong></p>
+        <p style="color: #8b949e;">Secure Node: <span style="font-family: monospace; color: #00f2ff;">{{ .address }}</span> | Balance: <strong>{{ .balance }} sUSD</strong></p>
 
         <div class="grid">
+            <!-- Payroll & Bulk Dispatch -->
             <div class="box">
                 <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Payroll & Bulk Dispatch</h3>
                 <input type="file" id="csvFile" accept=".csv" class="submit-input">
@@ -46,20 +47,38 @@
                 <button class="action-btn" onclick="processBulk()">EXECUTE PAYMENTS</button>
             </div>
 
+            <!-- Security Settings -->
             <div class="box">
                 <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Security Settings</h3>
-                <form action="/auth/change-password" method="POST">
+                <form action="/auth/update-password" method="POST">
                     <label>Update Portal Password</label>
                     <input type="password" name="new_password" class="submit-input" placeholder="New Secure Password" required>
                     <button type="submit" class="action-btn" style="background:#8b949e; color:#fff;">UPDATE PASSWORD</button>
                 </form>
             </div>
 
+            <!-- Recent Ledger Activity -->
             <div class="box" style="grid-column: span 2;">
                 <h3>Recent Ledger Activity</h3>
                 <table class="table-style">
-                    <thead><tr><th>Recipient</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody><tr><td colspan="4" style="text-align:center;">No activity recorded.</td></tr></tbody>
+                    <thead>
+                        <tr>
+                            <th>Recipient</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .activity }}
+                        <tr>
+                            <td>{{ .Recipient }}</td>
+                            <td>{{ .Amount }}</td>
+                            <td>{{ .Status }}</td>
+                        </tr>
+                        {{ else }}
+                        <tr><td colspan="3" style="text-align:center;">No activity recorded.</td></tr>
+                        {{ end }}
+                    </tbody>
                 </table>
             </div>
         </div>
