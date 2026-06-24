@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>USSD GATEWAY // Semhal Network</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .box-panel { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 8px; margin-bottom: 2rem; }
+        pre { background: #000; padding: 1.5rem; border-radius: 6px; color: #00ffa3; overflow-x: auto; font-family: 'Courier New', Courier, monospace; border: 1px solid #333; }
+    </style>
 </head>
 <body>
     <header>
@@ -25,20 +29,22 @@
         
         <div class="box-panel">
             <h2>1. Gateway Sandbox Configuration</h2>
-            <p style="margin-bottom: 1rem; color: var(--text-secondary)">The local Python USSD endpoint interfaces seamlessly with regional connectivity environments for end-to-end device testing:</p>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">The Go-based USSD handler interfaces with regional connectivity environments for testing:</p>
             <pre>
-# Infrastructure Context
-SIMULATOR_GATEWAY = "Africa's Talking Sandbox"
-TELECOM_CARRIER    = "Ethio Telecom"
-USSD_STRING_ROOT   = "*808#"</pre>
+// Infrastructure Context
+const (
+    GatewayProvider = "Africa's Talking"
+    Carrier         = "Ethio Telecom"
+    USSD_ROOT       = "*808#"
+)</pre>
         </div>
 
         <div class="box-panel">
             <h2>2. Session String Protocol</h2>
-            <p style="margin-bottom: 1rem; color: var(--text-secondary)">Incoming cell session packets format requests sequentially into the localized transactional ledger engine:</p>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">Incoming cell session packets are routed to the ledger engine:</p>
             <pre>
-Input Payload: sessionId=ATUid_123&networkCode=MINER1&text=1*0x1F9...
-Engine Return: CON Balance verified. Account hold allocation: 10,000,000,000 SUSD</pre>
+Payload: sessionId=ATUid_123&networkCode=MINER1&text=1*0x1F9...
+Response: CON Balance verified. Account allocation: {{ .allocation }} SUSD</pre>
         </div>
     </div>
 </body>
