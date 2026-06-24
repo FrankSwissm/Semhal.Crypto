@@ -1,16 +1,56 @@
-<table class="ledger-table">
-    <thead>
-        <tr>
-            <th>Cryptographic Address Target</th>
-            <th class="text-right">Allocation Balance (SUSD)</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{ range .ledger }}
-        <tr>
-            <td class="addr">{{ .Address }}</td>
-            <td class="val">{{ .Balance }}</td>
-        </tr>
-        {{ end }}
-    </tbody>
-</table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NETWORK EXPLORER // Semhal Ledger</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .explorer-table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
+        .explorer-table th { text-align: left; padding: 1rem; border-bottom: 2px solid var(--border-glow); color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; }
+        .explorer-table td { padding: 1rem; border-bottom: 1px solid #30363d; font-family: var(--font-mono); }
+        .status-pill { background: rgba(0, 255, 163, 0.1); color: #00ffa3; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer" class="active">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
+            <a href="/markets">Market Monitor</a>
+            <a href="/news">Network News</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>Network Explorer</h1>
+        <p style="color: var(--text-secondary);">Real-time visualization of the Semhal global ledger state.</p>
+
+        <table class="explorer-table">
+            <thead>
+                <tr>
+                    <th>Node Address</th>
+                    <th>Balance (sUSD)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .ledger }}
+                <tr>
+                    <td style="color: var(--accent-cyan);">{{ .Address }}</td>
+                    <td>{{ .Balance }}</td>
+                    <td><span class="status-pill">ACTIVE</span></td>
+                </tr>
+                {{ else }}
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 2rem;">No nodes detected in current epoch.</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
