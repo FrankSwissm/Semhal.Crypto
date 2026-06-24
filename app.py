@@ -142,6 +142,26 @@ def api_transfer():
     db.session.commit()
     return jsonify({"status": "success", "new_balance": sender.balance})
 
+
+@app.route('/api/transfer', methods=['POST'])
+def api_transfer():
+    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    sender = Account.query.filter_by(address=session['node_address']).first()
+    recipient = get_or_create_account(request.form.get('recipient', '').strip())
+    
+    try:
+        amount = float(request.form.get('amount', 0))
+    except: return jsonify({"status": "error", "message": "Invalid amount"}), 400
+    
+    if session.get('role') != 'Admin':
+        if amount < 0.0000001 or not sender or sender.balance < amount:
+            return jsonify({"status": "error", "message": "Insufficient/Invalid"}), 400
+        sender.balance -= amount
+    
+    recipient.balance += amount
+    db.session.commit()
+    return jsonify({"status": "success", "new_balance": sender.balance if sender else 0})
+
 @app.route('/auth/logout')
 def auth_logout():
     session.clear()
