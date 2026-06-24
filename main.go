@@ -5,15 +5,17 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// --- Models ---
+// Models
 type Account struct {
-	Address string  `gorm:"primaryKey" json:"address"`
-	Balance float64 `gorm:"default:0.0" json:"balance"`
-	IsOrg   bool    `gorm:"default:false" json:"is_org"`
+	Address  string  `gorm:"primaryKey" json:"address"`
+	Password string  `json:"-"`
+	Balance  float64 `gorm:"default:100.0" json:"balance"`
+	Role     string  `gorm:"default:'user'" json:"role"` // 'user', 'miner', 'org', 'admin'
 }
 
 var db *gorm.DB
@@ -31,22 +33,78 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// --- Routes ---
-	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{"total_supply": "1,250,000", "total_nodes": "48"})
-	})
+	// Navigation Routes
+	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
+	// ... (Add your other nav routes here: /explorer, /markets, /news, etc.)
 
+	// Auth & Portal Routes
 	r.POST("/auth/login", loginHandler)
-	r.GET("/portal/user", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "user_portal.html", gin.H{"address": "0x00...", "balance": 0.0})
-	})
+	r.GET("/portal/:role", portalHandler)
+
+	// API Routes
+	r.POST("/api/transfer", transferHandler)
+	r.GET("/api/ai-monitor", aiMonitorHandler)
 
 	r.Run(":8085")
 }
 
-// --- Handlers ---
+// Handlers
 func loginHandler(c *gin.Context) {
-	// If you aren't using variables, prefix them with underscore 
-	// or use them to avoid build errors.
-	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/user"})
+	addr := c.PostForm("address")
+	pass := c.PostForm("password")
+
+	var acc Account
+	if err := db.Where("address = ?", addr).First(&acc).Error; err != nil {
+		// Auto-register logic for demonstration
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+		acc = Account{Address: addr, Password: string(hashed), Role: "user"}
+		db.Create(&acc)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/" + acc.Role})
+}
+
+func portalHandler(c *gin.Context) {
+	role := c.Param("role")
+	templateName := role + "_portal.html"
+	
+	// Fetch account data
+	var acc Account
+	db.First(&acc, "role = ?", role)
+
+	c.HTML(http.StatusOK, templateName, gin.H{
+		"address": acc.Address,
+		"balance": acc.Balance,
+	})
+}
+
+func transferHandler(c *gin.Context) {
+	var input struct {
+		Sender    string  `json:"sender"`
+		Recipient string  `json:"recipient"`
+		Amount    float64 `json:"amount"`
+	}
+	c.ShouldBindJSON(&input)
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var sender, recipient Account
+		tx.First(&sender, "address = ?", input.Sender)
+		tx.FirstOrCreate(&recipient, Account{Address: input.Recipient})
+
+		if sender.Balance < input.Amount { return gorm.ErrInvalidData }
+		
+		tx.Model(&sender).Update("balance", sender.Balance-input.Amount)
+		tx.Model(&recipient).Update("balance", recipient.Balance+input.Amount)
+		return nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Transaction failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func aiMonitorHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"malicious_detected": false})
 }
