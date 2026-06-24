@@ -23,9 +23,9 @@
             <a href="/markets">Markets</a>
             <a href="/news">News</a>
             
-            {% if is_authenticated %}
-                <a href="/portal/{{ user_role.lower() }}" style="color: #00ffa3; font-weight: bold; border: 1px solid #00ffa3; padding: 0 10px;">MY PORTAL</a>
-            {% endif %}
+            {{ if .is_authenticated }}
+                <a href="/portal/{{ .user_role }}" style="color: #00ffa3; font-weight: bold; border: 1px solid #00ffa3; padding: 0 10px;">MY PORTAL</a>
+            {{ end }}
         </nav>
         <div class="auth-nav-block">
             <span class="status-pill">AI ACTIVE</span>
@@ -37,11 +37,11 @@
         <div class="ai-banner">
             <div>
                 <h2 style="margin:0;">Neural Ledger Monitor</h2>
-                <div style="color: #8b949e;">Node: {{ address }}</div>
+                <div style="color: #8b949e;">Node: {{ .address }}</div>
             </div>
             <div style="text-align: right;">
                 <div style="font-size: 0.8rem; color: #8b949e;">SYSTEM BALANCE</div>
-                <div style="font-size: 1.5rem; font-weight: bold;">{{ balance }} sUSD</div>
+                <div style="font-size: 1.5rem; font-weight: bold;">{{ .balance }} sUSD</div>
             </div>
         </div>
 
@@ -51,28 +51,6 @@
             [SYSTEM] Integrity check active. Monitoring mempool...
         </div>
     </div>
-
-    <script>
-        const logBox = document.getElementById('ai-log');
-
-        async function runAIMonitor() {
-            try {
-                const res = await fetch('/api/ai-monitor');
-                const data = await res.json();
-                
-                if (data.malicious_detected) {
-                    const entry = document.createElement('div');
-                    entry.style.color = "#ff4444";
-                    entry.innerHTML = `[ALERT] Malicious Transaction Purged at ${new Date().toLocaleTimeString()}`;
-                    logBox.prepend(entry);
-                } else if(Math.random() > 0.8) {
-                    const pulse = document.createElement('div');
-                    pulse.innerHTML = `[OK] Ledger integrity verified at ${new Date().toLocaleTimeString()}`;
-                    logBox.prepend(pulse);
-                }
-            } catch (e) { console.error("Monitor Error", e); }
-        }
-        setInterval(runAIMonitor, 3000);
-    </script>
-</body>
+    
+    </body>
 </html>
