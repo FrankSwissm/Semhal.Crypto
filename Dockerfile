@@ -11,9 +11,11 @@ FROM alpine:latest
 WORKDIR /root/
 # Copy the binary
 COPY --from=builder /app/semhal-crypto .
-# COPY the folders explicitly!
+
+# --- CRITICAL: THESE LINES MUST BE HERE ---
 COPY templates/ ./templates/
 COPY static/ ./static/
+# ------------------------------------------
 
 EXPOSE 8085
 CMD ["./semhal-crypto"]
