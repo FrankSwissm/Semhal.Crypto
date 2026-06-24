@@ -126,22 +126,23 @@ def user_portal():
     acc = get_or_create_account(session['node_address'])
     return render_template('user_portal.html', address=session['node_address'], balance=acc.balance)
 
-@app.route('/portal/miner')
-def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('news'))
-    acc = get_or_create_account(session['node_address'])
-    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
-
-@app.route('/portal/organization')
-def organization_portal():
-    if session.get('role') != 'Organization': return redirect(url_for('news'))
-    acc = get_or_create_account(session['node_address'])
+# --- AI AUTOMATED MINER ENGINE ---
+@app.route('/api/ai-monitor', methods=['GET'])
+def api_ai_monitor():
+    # 1. Logic to detect malicious transactions
+    # (Here you would inspect the pending transaction pool or the latest blocks)
+    malicious_txn = None # e.g., Logic to find transactions with negative values or invalid addresses
     
-    # Mandatory password change enforcement
-    if not acc.password_changed:
-        return redirect(url_for('change_password_page'))
-        
-    return render_template('organization_portal.html', address=session['node_address'], balance=acc.balance)
+    if malicious_txn:
+        # Delete transaction code here
+        return jsonify({
+            "malicious_detected": True,
+            "sender": malicious_txn.sender,
+            "receiver": malicious_txn.receiver
+        })
+    
+    return jsonify({"malicious_detected": False})
+
 
 @app.route('/portal/admin')
 def admin_portal():
