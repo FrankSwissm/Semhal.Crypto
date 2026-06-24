@@ -35,7 +35,9 @@
     <div class="container intel-container">
         <h2>Global Markets Intelligence</h2>
         <table class="intel-table">
-            <tbody id="crypto-body"><tr><td colspan="3">Initializing live stream...</td></tr></tbody>
+            <tbody id="crypto-body">
+                <tr><td colspan="3">Initializing live stream...</td></tr>
+            </tbody>
         </table>
     </div>
 
@@ -45,6 +47,7 @@
             try {
                 const res = await fetch('/api/market-data');
                 const data = await res.json();
+                // Data mapping remains client-side, which is highly efficient
                 cryptoBody.innerHTML = data.crypto.map(item => `
                     <tr>
                         <td class="asset-name">${item.name}</td>
