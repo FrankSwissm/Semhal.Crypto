@@ -16,7 +16,6 @@
         .action-btn { width: 100%; background: var(--accent-cyan); color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.9rem; }
         .submit-input { width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glow); color: #fff; border-radius: 4px; box-sizing: border-box; }
         
-        /* Expanded Receipt Modal Styles */
         #receipt-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
         .modal-card { background: #161b22; padding: 2.5rem; border: 1px solid var(--accent-cyan); border-radius: 12px; width: 90%; max-width: 500px; min-height: 350px; text-align: center; }
     </style>
@@ -44,9 +43,9 @@
             <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;">Secure Node Interface</span>
             <h2>Active Wallet Session</h2>
             <div>
-                <span class="address-bar">{{ address }}</span>
+                <span class="address-bar">{{ .address }}</span>
             </div>
-            <div class="balance-display" id="current-balance">{{ balance }} <span style="font-size:1.5rem; color:#fff;">sUSD</span></div>
+            <div class="balance-display" id="current-balance">{{ .balance }} <span style="font-size:1.5rem; color:#fff;">sUSD</span></div>
             <p style="color: var(--text-secondary); font-size: 0.85rem; font-family: var(--font-mono);">Available balance synced with worldwide public ledger records.</p>
         </div>
 
@@ -77,7 +76,7 @@
             <h2 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">SEMHAL CRYPTOCURRENCY</h2>
             <p style="color: #fff; font-size: 1rem; margin-bottom: 2rem;">Transaction successfully settled onto the block ledger!</p>
             <div style="text-align: left; font-family: monospace; color: #a4a8b6; font-size: 0.95rem; line-height: 2;">
-                <p><strong>Sender:</strong> <span id="r-sender" style="color: #fff; word-break: break-all;">{{ address }}</span></p>
+                <p><strong>Sender:</strong> <span id="r-sender" style="color: #fff; word-break: break-all;">{{ .address }}</span></p>
                 <p><strong>Receiver:</strong> <span id="r-receiver" style="color: #fff; word-break: break-all;"></span></p>
                 <p><strong>Amount:</strong> <span id="r-amount" style="color: #fff;"></span> sUSD</p>
                 <p><strong>Date:</strong> <span id="r-date" style="color: #fff;"></span></p>
@@ -93,11 +92,6 @@
             const amount = document.getElementById('amount-input').value;
             const now = new Date().toLocaleString();
             
-            if (!recipient.startsWith('0x') || recipient.length !== 42) {
-                alert('Invalid address format. Must be a 42-character 0x Ethereum-style address.');
-                return;
-            }
-
             const formData = new FormData(e.target);
             const res = await fetch('/api/transfer', { method: 'POST', body: formData });
             const data = await res.json();
@@ -108,7 +102,6 @@
                 document.getElementById('r-date').innerText = now;
                 
                 document.getElementById('receipt-modal').style.display = 'flex';
-                
                 document.getElementById('current-balance').innerHTML = `${data.new_balance} <span style="font-size:1.5rem; color:#fff;">sUSD</span>`;
                 e.target.reset();
             } else {
