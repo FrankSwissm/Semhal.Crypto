@@ -63,6 +63,18 @@ def markets(): return render_template('markets.html')
 @app.route('/news')
 def news(): return render_template('news.html')
 
+# --- GLOBAL CONTEXT ---
+@app.context_processor
+def inject_user_info():
+    # Force lowercase here so the template code is always safe
+    role = session.get('role', 'user')
+    return dict(
+        user_address=session.get('node_address'),
+        user_role=role.lower(), # Now it is always lowercase
+        is_authenticated=('node_address' in session)
+    )
+
+
 # --- PORTALS ---
 @app.route('/portal/user')
 def user_portal():
