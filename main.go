@@ -33,20 +33,42 @@ func main() {
 
 	r := gin.Default()
 
-	// Root Route to prevent 404
+	// 1. Serve static files (CSS/JS) and templates
+	r.Static("/static", "./static")
+	r.LoadHTMLGlob("templates/*")
+
+	// 2. Frontend Routes
 	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "Semhal Crypto API is active"})
+		// Replace 'false' with actual logic checking if user is logged in
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"is_logged_in": false,
+			"total_supply": "1,250,000",
+			"total_nodes":  "48",
+		})
 	})
 
-	// Auth & API
+	// 3. API Routes
 	r.POST("/auth/login", loginHandler)
 	r.POST("/api/transfer", authMiddleware(), transferHandler)
 	r.GET("/api/ai-monitor", aiMonitorHandler)
+	
+	// API endpoint for dashboard charts
+	r.GET("/api/balances", func(c *gin.Context) {
+		var accounts []Account
+		db.Limit(5).Find(&accounts)
+		
+		accMap := make(map[string]float64)
+		for _, acc := range accounts {
+			accMap[acc.Address] = acc.Balance
+		}
+		c.JSON(http.StatusOK, gin.H{"accounts": accMap})
+	})
 
 	r.Run(":8085")
 }
 
-// Authentication Middleware
+// --- Middleware & Handlers ---
+
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := c.GetHeader("Authorization")
@@ -66,22 +88,13 @@ func authMiddleware() gin.HandlerFunc {
 func loginHandler(c *gin.Context) {
 	addr := c.PostForm("address")
 	pass := c.PostForm("password")
-
 	var acc Account
 	db.FirstOrCreate(&acc, Account{Address: addr})
 
 	role := "User"
-	if pass == "admin123" {
-		role = "Admin"
-	}
-	if pass == "Organization@portal" {
-		role = "Organization"
-		acc.IsOrg = true
-		db.Save(&acc)
-	}
-	if pass == "miner123" {
-		role = "Miner"
-	}
+	if pass == "admin123" { role = "Admin" }
+	if pass == "Organization@portal" { role = "Organization"; acc.IsOrg = true; db.Save(&acc) }
+	if pass == "miner123" { role = "Miner" }
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"address": addr,
@@ -95,28 +108,16 @@ func loginHandler(c *gin.Context) {
 func transferHandler(c *gin.Context) {
 	senderAddr, _ := c.Get("address")
 	role, _ := c.Get("role")
-
 	var input struct {
 		Recipient string  `json:"recipient"`
 		Amount    float64 `json:"amount"`
 	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
-		return
-	}
-
-	if input.Amount < 0.0000001 {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Min transfer: 0.0000001"})
-		return
-	}
-
+	c.ShouldBindJSON(&input)
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if role != "Admin" {
 			var sender Account
 			tx.First(&sender, "address = ?", senderAddr)
-			if sender.Balance < input.Amount {
-				return http.ErrAbortHandler
-			}
+			if sender.Balance < input.Amount { return http.ErrAbortHandler }
 			tx.Model(&sender).Update("balance", sender.Balance-input.Amount)
 		}
 		var recipient Account
@@ -124,11 +125,7 @@ func transferHandler(c *gin.Context) {
 		tx.Model(&recipient).Update("balance", recipient.Balance+input.Amount)
 		return nil
 	})
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": "error"})
-		return
-	}
+	if err != nil { c.JSON(http.StatusBadRequest, gin.H{"status": "error"}) }
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
