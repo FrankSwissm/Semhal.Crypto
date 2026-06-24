@@ -47,7 +47,15 @@ def home():
     return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
 
 @app.route('/explorer')
-def explorer(): return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
+def explorer():
+    # It MUST return render_template for the context_processor to work
+    return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
+
+@app.route('/news')
+def news():
+    # Ensure every single route uses render_template
+    return render_template('news.html')
+
 
 @app.route('/docs')
 def docs(): return render_template('docs.html')
