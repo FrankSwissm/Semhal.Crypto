@@ -17,6 +17,11 @@
         <nav>
             <a href="/">Dashboard</a>
             <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Docs</a>
+            <a href="/ussd">USSD</a>
+            <a href="/core">Core</a>
+            <a href="/markets">Markets</a>
+            <a href="/news">News</a>
         </nav>
         <div class="auth-nav-block">
             <span class="status-pill">AI ACTIVE</span>
@@ -56,20 +61,13 @@
                     entry.style.color = "#ff4444";
                     entry.innerHTML = `[ALERT] Malicious Transaction Purged: ${data.sender} -> ${data.receiver}`;
                     logBox.prepend(entry);
-                } else {
-                    // Periodic "heartbeat" to show it's still watching
-                    if(Math.random() > 0.8) {
-                        const pulse = document.createElement('div');
-                        pulse.innerHTML = `[OK] Ledger integrity verified at ${new Date().toLocaleTimeString()}`;
-                        logBox.prepend(pulse);
-                    }
+                } else if(Math.random() > 0.8) {
+                    const pulse = document.createElement('div');
+                    pulse.innerHTML = `[OK] Ledger integrity verified at ${new Date().toLocaleTimeString()}`;
+                    logBox.prepend(pulse);
                 }
-            } catch (e) {
-                console.error("Monitor Error", e);
-            }
+            } catch (e) { console.error("Monitor Error", e); }
         }
-
-        // Run the AI monitor every 3 seconds
         setInterval(runAIMonitor, 3000);
     </script>
 </body>
