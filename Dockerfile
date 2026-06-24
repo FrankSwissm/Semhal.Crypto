@@ -1,17 +1,16 @@
-# 1. Build Stage
+# Stage 1: Build the Go binary
 FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o semhal-crypto main.go
+RUN go build -o semhal-crypto .
 
-# 2. Final Execution Stage
+# Stage 2: Create a minimal production image
 FROM alpine:latest
 WORKDIR /root/
-# Copy the built binary from the builder stage
 COPY --from=builder /app/semhal-crypto .
-# Expose the port your Go app listens on
-EXPOSE 8085
-# Run the binary
+# Expose the port your Go app uses (usually 8080)
+EXPOSE 8080
 CMD ["./semhal-crypto"]
+
