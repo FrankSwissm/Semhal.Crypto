@@ -65,7 +65,17 @@ def news(): return render_template('news.html')
 def auth_login():
     address = request.form.get('address', '').strip()
     password = request.form.get('password', '')
-    role = "Admin" if password == "admin123" else ("Miner" if password == "miner123" else "User")
+    
+    # Unified role logic
+    if password == "Organization@portal":
+        role = "Organization"
+    elif password == "admin123":
+        role = "Admin"
+    elif password == "miner123":
+        role = "Miner"
+    else:
+        role = "User"
+        
     session.permanent = True
     session['node_address'] = address
     session['role'] = role
@@ -91,34 +101,9 @@ def miner_portal():
 
 @app.route('/portal/organization')
 def organization_portal():
-    # Only allow access if the role is Organization
-    if session.get('role') != 'Organization':
-        return redirect(url_for('news'))
-    
+    if session.get('role') != 'Organization': return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
     return render_template('organization_portal.html', address=session['node_address'], balance=acc.balance)
-
-# Update auth_login to support the new password
-@app.route('/auth/login', methods=['POST'])
-def auth_login():
-    address = request.form.get('address', '').strip()
-    password = request.form.get('password', '')
-    
-    # New logic for Organization
-    if password == "Organization@portal":
-        role = "Organization"
-    elif password == "admin123":
-        role = "Admin"
-    elif password == "miner123":
-        role = "Miner"
-    else:
-        role = "User"
-        
-    session.permanent = True
-    session['node_address'] = address
-    session['role'] = role
-    get_or_create_account(address)
-    return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
 @app.route('/portal/admin')
 def admin_portal():
