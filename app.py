@@ -14,6 +14,7 @@ class Account(db.Model):
     __tablename__ = 'accounts'
     address = db.Column(db.String(42), primary_key=True)
     balance = db.Column(db.Float, default=0.0)
+    password_changed = db.Column(db.Boolean, default=False)
 
 # --- INITIALIZATION ---
 with app.app_context():
@@ -82,6 +83,18 @@ def auth_login():
     get_or_create_account(address)
     return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
+@app.route('/auth/change-password', methods=['GET', 'POST'])
+def change_password_page():
+    if 'node_address' not in session or session.get('role') != 'Organization':
+        return redirect(url_for('news'))
+    
+    if request.method == 'POST':
+        acc = get_or_create_account(session['node_address'])
+        acc.password_changed = True
+        db.session.commit()
+        return redirect(url_for('organization_portal'))
+    return render_template('change_password.html')
+
 @app.route('/auth/logout')
 def auth_logout():
     session.clear()
@@ -103,6 +116,11 @@ def miner_portal():
 def organization_portal():
     if session.get('role') != 'Organization': return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
+    
+    # Mandatory password change enforcement
+    if not acc.password_changed:
+        return redirect(url_for('change_password_page'))
+        
     return render_template('organization_portal.html', address=session['node_address'], balance=acc.balance)
 
 @app.route('/portal/admin')
