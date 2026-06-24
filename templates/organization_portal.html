@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ORGANIZATION PORTAL // Semhal Ledger</title>
+    <style>
+        :root { --accent-cyan: #00f2ff; --surface-card: #161b22; --border-glow: #30363d; --text-secondary: #8b949e; }
+        body { background-color: #0d1117; color: #fff; font-family: sans-serif; }
+        .portal-container { max-width: 1100px; margin: 3rem auto; padding: 0 1rem; }
+        .box { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 12px; margin-bottom: 2rem; }
+        .table-style { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .table-style th, .table-style td { padding: 1rem; border-bottom: 1px solid var(--border-glow); text-align: left; }
+        .action-btn { background: var(--accent-cyan); color: #000; font-weight: bold; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; }
+        .file-upload { border: 2px dashed var(--border-glow); padding: 1rem; text-align: center; margin-bottom: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="portal-container">
+    <h1>Organization Management</h1>
+
+    <div class="box">
+        <h3>Bulk Payroll Disbursement</h3>
+        <div class="file-upload" onclick="document.getElementById('csvInput').click()">
+            Upload Employee CSV (Address, Amount)
+            <input type="file" id="csvInput" style="display:none" onchange="handleFileUpload(event)">
+        </div>
+        <textarea id="manualAddresses" class="submit-input" placeholder="Or paste multiple: 0xAddress,Amount" rows="4" style="width:100%; background:#0d1117; color:#fff;"></textarea>
+        <button class="action-btn" onclick="executeBulkPayment()">Execute All Payments</button>
+    </div>
+
+    <div class="box">
+        <h3>Transaction History</h3>
+        <table class="table-style">
+            <thead><tr><th>Date</th><th>Type</th><th>Address</th><th>Amount</th><th>Status</th><th>Report</th></tr></thead>
+            <tbody id="history-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Mock Data/Logic
+    function executeBulkPayment() {
+        const input = document.getElementById('manualAddresses').value;
+        alert("Processing bulk payment for organization...");
+        // API logic would call /api/bulk-transfer
+    }
+
+    function printPDF(txId) {
+        alert("Generating PDF Receipt for: " + txId);
+        // Logic to trigger server-side PDF generation
+    }
+
+    // Load History
+    async function loadHistory() {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        const tbody = document.getElementById('history-body');
+        data.forEach(tx => {
+            tbody.innerHTML += `<tr>
+                <td>${tx.date}</td>
+                <td>${tx.type}</td>
+                <td>${tx.address}</td>
+                <td>${tx.amount} sUSD</td>
+                <td>Settled</td>
+                <td><button onclick="printPDF('${tx.id}')">Download PDF</button></td>
+            </tr>`;
+        });
+    }
+    loadHistory();
+</script>
+
+</body>
+</html>
