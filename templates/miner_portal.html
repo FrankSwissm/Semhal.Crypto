@@ -2,73 +2,75 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MINER PORTAL // Semhal Network</title>
+    <title>AI MINER // Semhal Ledger</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .portal-container { max-width: 900px; margin: 3rem auto; }
-        .miner-banner { background: linear-gradient(135deg, #0b1511 0%, #111e17 100%); border: 1px solid rgba(0, 255, 163, 0.2); padding: 2.5rem; border-radius: 12px; margin-bottom: 2rem; }
-        .address-bar { font-family: var(--font-mono); background: rgba(0,0,0,0.4); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); color: #a4a8b6; margin-top: 0.5rem; display: inline-block; font-size: 0.85rem; word-break: break-all; }
-        .mining-box { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 12px; text-align: center; }
-        .balance-display { font-size: 2rem; font-weight: bold; color: var(--accent-gold); margin: 1rem 0; font-family: var(--font-mono); }
-        .hash-rate { font-size: 1.5rem; font-weight: bold; color: var(--accent-cyan); margin: 1rem 0; font-family: var(--font-mono); }
-        .action-btn { width: 100%; background: #00ffa3; color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.9rem; }
+        .portal-container { max-width: 1000px; margin: 3rem auto; }
+        .ai-banner { background: #0b1511; border: 1px solid #00ffa3; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .log-box { background: #000; border: 1px solid #30363d; padding: 1.5rem; border-radius: 8px; font-family: monospace; height: 300px; overflow-y: auto; color: #00ffa3; }
+        .status-pill { padding: 0.5rem 1rem; border-radius: 20px; background: rgba(0, 255, 163, 0.1); color: #00ffa3; font-weight: bold; }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo">SEMHAL <span>LEDGER</span></div>
+        <div class="logo">SEMHAL <span>AI-MINER</span></div>
         <nav>
             <a href="/">Dashboard</a>
             <a href="/explorer">Network Explorer</a>
-            <a href="/docs">Integration Architecture</a>
-            <a href="/ussd">USSD Gateway</a>
-            <a href="/core">System Core</a>
-            <a href="/markets">Market Monitor</a>
-            <a href="/news">Network News</a>
         </nav>
         <div class="auth-nav-block">
-            <a href="/portal/miner" class="runtime-badge" style="background: rgba(0, 255, 163, 0.15); color: #00ffa3;">MY PORTAL [MINER]</a>
+            <span class="status-pill">AI ACTIVE</span>
             <a href="/auth/logout" class="logout-btn">Disconnect</a>
         </div>
     </header>
 
     <div class="container portal-container">
-        <div class="miner-banner">
-            <h2>Distributed Miner Session</h2>
-            <span class="address-bar">{{ address }}</span>
-            <div class="balance-display" id="miner-balance">
-                Balance: {{ balance }} <span style="font-size:1rem; color:#fff;">sUSD</span>
+        <div class="ai-banner">
+            <div>
+                <h2 style="margin:0;">Neural Ledger Monitor</h2>
+                <div style="color: #8b949e;">Node: {{ address }}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.8rem; color: #8b949e;">SYSTEM BALANCE</div>
+                <div style="font-size: 1.5rem; font-weight: bold;">{{ balance }} sUSD</div>
             </div>
         </div>
 
-        <div class="mining-box">
-            <h3 style="font-family: var(--font-mono); text-transform: uppercase; margin-bottom: 1rem;">Block Validation Simulator</h3>
-            <div class="hash-rate" id="status-text">STATUS // IDLE</div>
-            <button id="mine-btn" class="action-btn">Initialize Local Block Mining</button>
+        <h3 style="color: #fff;">Real-Time Malicious Transaction Detection</h3>
+        <div class="log-box" id="ai-log">
+            [SYSTEM] Initializing Super Dynamic Miner...<br>
+            [SYSTEM] Integrity check active. Monitoring mempool...
         </div>
     </div>
 
     <script>
-        document.getElementById('mine-btn').onclick = async () => {
-            const btn = document.getElementById('mine-btn');
-            const status = document.getElementById('status-text');
-            
-            btn.disabled = true;
-            status.innerText = "COMPUTING HASHES...";
-            
-            const res = await fetch('/api/mine-reward', { method: 'POST' });
-            const data = await res.json();
-            
-            if (data.status === 'success') {
-                document.getElementById('miner-balance').innerHTML = 
-                    `Balance: ${data.total.toFixed(3)} <span style="font-size:1rem; color:#fff;">sUSD</span>`;
-                status.innerText = "STATUS // REWARD GRANTED";
-            } else {
-                status.innerText = "STATUS // ERROR";
-                alert('Mining failed: ' + data.message);
+        const logBox = document.getElementById('ai-log');
+
+        async function runAIMonitor() {
+            try {
+                const res = await fetch('/api/ai-monitor');
+                const data = await res.json();
+                
+                if (data.malicious_detected) {
+                    const entry = document.createElement('div');
+                    entry.style.color = "#ff4444";
+                    entry.innerHTML = `[ALERT] Malicious Transaction Purged: ${data.sender} -> ${data.receiver}`;
+                    logBox.prepend(entry);
+                } else {
+                    // Periodic "heartbeat" to show it's still watching
+                    if(Math.random() > 0.8) {
+                        const pulse = document.createElement('div');
+                        pulse.innerHTML = `[OK] Ledger integrity verified at ${new Date().toLocaleTimeString()}`;
+                        logBox.prepend(pulse);
+                    }
+                }
+            } catch (e) {
+                console.error("Monitor Error", e);
             }
-            btn.disabled = false;
-        };
+        }
+
+        // Run the AI monitor every 3 seconds
+        setInterval(runAIMonitor, 3000);
     </script>
 </body>
 </html>
