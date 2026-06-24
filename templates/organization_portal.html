@@ -47,6 +47,15 @@
             </div>
 
             <div class="box">
+                <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Security Settings</h3>
+                <form action="/auth/change-password" method="POST">
+                    <label>Update Portal Password</label>
+                    <input type="password" name="new_password" class="submit-input" placeholder="New Secure Password" required>
+                    <button type="submit" class="action-btn" style="background:#8b949e; color:#fff;">UPDATE PASSWORD</button>
+                </form>
+            </div>
+
+            <div class="box" style="grid-column: span 2;">
                 <h3>Recent Ledger Activity</h3>
                 <table class="table-style">
                     <thead><tr><th>Recipient</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
