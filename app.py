@@ -1,9 +1,11 @@
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 import os
+from datetime import timedelta
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'SEMHAL_SYSTEM_ENCRYPTION_KEY_SECRET'
+app.permanent_session_lifetime = timedelta(days=7)
 
 # Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -28,6 +30,15 @@ def get_or_create_account(address):
         db.session.commit()
     return acc
 
+# --- GLOBAL CONTEXT ---
+@app.context_processor
+def inject_user_info():
+    return dict(
+        user_address=session.get('node_address'),
+        user_role=session.get('role'),
+        is_authenticated=('node_address' in session)
+    )
+
 # --- NAVIGATION ROUTES ---
 @app.route('/')
 def home():
@@ -36,8 +47,7 @@ def home():
     return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
 
 @app.route('/explorer')
-def explorer():
-    return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
+def explorer(): return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
 
 @app.route('/docs')
 def docs(): return render_template('docs.html')
@@ -54,44 +64,18 @@ def markets(): return render_template('markets.html')
 @app.route('/news')
 def news(): return render_template('news.html')
 
-# --- AUTH & PORTALS ---
-@app.route('/auth/login', methods=['POST'])
-def auth_login():
-    address = request.form.get('address', '').strip()
-    password = request.form.get('password', '')
-    acc = get_or_create_account(address)
-    
-    if password == "Organization@portal":
-        role = "Organization"
-        acc.is_org = True
-        db.session.commit()
-    elif acc.is_org:
-        role = "Organization"
-    elif password == "admin123":
-        role = "Admin"
-    elif password == "miner123":
-        role = "Miner"
-    else:
-        role = "User"
-        
-    session.permanent = True
-    session['node_address'] = address
-    session['role'] = role
-    
-    if role == "Organization" and not acc.password_changed:
-        return jsonify({"status": "success", "redirect": "/auth/change-password"})
-    return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
+# --- PORTALS ---
+@app.route('/portal/user')
+def user_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    acc = get_or_create_account(session['node_address'])
+    return render_template('user_portal.html', address=session['node_address'], balance=acc.balance)
 
-@app.route('/auth/change-password', methods=['GET', 'POST'])
-def change_password_page():
-    if 'node_address' not in session: return redirect(url_for('home'))
-    if request.method == 'POST':
-        acc = get_or_create_account(session['node_address'])
-        acc.password_changed = True
-        session['role'] = 'Organization'
-        db.session.commit()
-        return redirect(url_for('organization_portal'))
-    return render_template('change_password.html')
+@app.route('/portal/miner')
+def miner_portal():
+    if 'node_address' not in session: return redirect(url_for('news'))
+    acc = get_or_create_account(session['node_address'])
+    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
 
 @app.route('/portal/organization')
 def organization_portal():
@@ -100,36 +84,59 @@ def organization_portal():
     if not acc.password_changed: return redirect(url_for('change_password_page'))
     return render_template('organization_portal.html', address=session['node_address'], balance=acc.balance)
 
-@app.route('/portal/miner')
-def miner_portal():
-    if 'node_address' not in session: return redirect(url_for('news'))
-    acc = get_or_create_account(session['node_address'])
-    return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
-
 @app.route('/portal/admin')
 def admin_portal():
     if session.get('role') != 'Admin': return redirect(url_for('news'))
     return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
 
-# --- API LAYER ---
+# --- AUTH & API LAYER ---
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    address = request.form.get('address', '').strip()
+    password = request.form.get('password', '')
+    acc = get_or_create_account(address)
+    
+    if password == "Organization@portal": role = "Organization"; acc.is_org = True
+    elif acc.is_org: role = "Organization"
+    elif password == "admin123": role = "Admin"
+    elif password == "miner123": role = "Miner"
+    else: role = "User"
+        
+    session.permanent = True
+    session['node_address'] = address
+    session['role'] = role
+    db.session.commit()
+    return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
+
 @app.route('/api/ai-monitor', methods=['GET'])
 def api_ai_monitor():
     malicious = Account.query.filter(Account.balance < 0).all()
-    for acc in malicious:
-        acc.balance = 0.0
+    for acc in malicious: acc.balance = 0.0
     db.session.commit()
     return jsonify({"malicious_detected": len(malicious) > 0})
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
+    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    MIN_TRANSFER = 0.0000001
     sender = get_or_create_account(session['node_address'])
-    recipient = get_or_create_account(request.form.get('recipient', '').strip())
+    recipient_addr = request.form.get('recipient', '').strip()
+    
+    if not recipient_addr or recipient_addr == sender.address:
+        return jsonify({"status": "error", "message": "Invalid recipient"}), 400
+        
+    recipient = get_or_create_account(recipient_addr)
     try:
         amount = float(request.form.get('amount', 0))
-    except: return jsonify({"status": "error"}), 400
-    if session.get('role') != 'Admin' and (amount < 0 or sender.balance < amount):
-        return jsonify({"status": "error"}), 400
+    except: return jsonify({"status": "error", "message": "Invalid amount"}), 400
+    
+    if amount < MIN_TRANSFER:
+        return jsonify({"status": "error", "message": f"Min transfer: {MIN_TRANSFER}"}), 400
+    
+    if session.get('role') != 'Admin' and sender.balance < amount:
+        return jsonify({"status": "error", "message": "Insufficient balance"}), 400
+    
     sender.balance -= amount
     recipient.balance += amount
     db.session.commit()
