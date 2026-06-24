@@ -33,6 +33,11 @@ func main() {
 
 	r := gin.Default()
 
+	// Root Route to prevent 404
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "Semhal Crypto API is active"})
+	})
+
 	// Auth & API
 	r.POST("/auth/login", loginHandler)
 	r.POST("/api/transfer", authMiddleware(), transferHandler)
