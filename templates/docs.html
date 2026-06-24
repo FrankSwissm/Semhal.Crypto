@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>INTEGRATION ARCHITECTURE // Semhal Network</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .box-panel { background: var(--surface-card); border: 1px solid var(--border-glow); padding: 2rem; border-radius: 8px; margin-bottom: 2rem; }
+        pre { background: #000; padding: 1.5rem; border-radius: 6px; color: #00ffa3; overflow-x: auto; font-family: 'Courier New', Courier, monospace; border: 1px solid #333; }
+    </style>
 </head>
 <body>
     <header>
@@ -25,30 +29,25 @@
 
         <div class="box-panel">
             <h2>1. Validating Transaction Checksums</h2>
-            <p style="margin-bottom: 1rem; color: var(--text-secondary)">All input transactions undergo evaluation checks according to capitalization matching patterns:</p>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">All input transactions undergo evaluation checks according to EIP-55 standards:</p>
             <pre>
 def verify_eip55_checksum(addr_string):
-    clean_addr = addr_string.replace("0x", "")
-    address_hash = keccak256(clean_addr.lower())
-    for idx in range(40):
-        if int(address_hash[idx], 16) >= 8:
-            if not clean_addr[idx].isupper(): return False
-    return True</pre>
+    # Logic for checksum validation
+    ...
+            </pre>
         </div>
 
         <div class="box-panel">
             <h2>2. Structural Account Schema Definitions</h2>
-            <p style="margin-bottom: 1rem; color: var(--text-secondary)">Transaction objects route down through local tunnels to backend processing pools using the format below:</p>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary)">Transaction objects route through local tunnels using the following JSON schema:</p>
             <pre>
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SemhalTransactionBlock",
   "type": "object",
   "properties": {
-    "source_node": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
-    "allocation_units": { "type": "integer", "minimum": 1 }
-  },
-  "required": ["source_node", "allocation_units"]
+    "source_node": { "type": "string" },
+    "allocation_units": { "type": "integer" }
+  }
 }</pre>
         </div>
     </div>
