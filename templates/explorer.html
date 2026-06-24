@@ -1,55 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>NETWORK EXPLORER // Semhal Network</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <style>
-        table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-family: var(--font-mono); font-size: 0.9rem; }
-        th { text-align: left; padding: 1rem; color: var(--text-secondary); border-bottom: 2px solid var(--border-glow); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
-        td { padding: 1.1rem 1rem; border-bottom: 1px solid #14161f; }
-        .addr { color: var(--accent-cyan); }
-        .val { color: var(--accent-gold); font-weight: bold; text-align: right; }
-        th.text-right { text-align: right; }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="logo">SEMHAL <span>LEDGER</span></div>
-        <nav>
-            <a href="/">Dashboard</a>
-            <a href="/explorer" class="active">Network Explorer</a>
-            <a href="/docs">Integration Architecture</a>
-            <a href="/ussd">USSD Gateway</a>
-            <a href="/core">System Core</a>
-            <a href="/markets">Market Monitor</a>
-            <a href="/news">Network News</a>
-        </nav>
-    </header>
-
-    <div class="container">
-        <h1>Network Ledger Audit</h1>
-        <div class="subtitle">Live verifiable check-points pulling structural genesis indices from ledger maps.</div>
-
-        <div class="box-panel">
-            <h2>Active Account Registry</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Cryptographic Address Target</th>
-                        <th class="text-right">Allocation Balance (SUSD)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for address, balance in ledger.items() %}
-                    <tr>
-                        <td class="addr">{{ address }}</td>
-                        <td class="val">{{ "{:,}".format(balance) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
+<table class="ledger-table">
+    <thead>
+        <tr>
+            <th>Cryptographic Address Target</th>
+            <th class="text-right">Allocation Balance (SUSD)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ range .ledger }}
+        <tr>
+            <td class="addr">{{ .Address }}</td>
+            <td class="val">{{ .Balance }}</td>
+        </tr>
+        {{ end }}
+    </tbody>
+</table>
