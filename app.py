@@ -30,7 +30,6 @@ def get_or_create_account(address):
         db.session.commit()
     return acc
 
-# --- GLOBAL CONTEXT ---
 @app.context_processor
 def inject_user_info():
     return dict(
@@ -77,13 +76,6 @@ def miner_portal():
     acc = get_or_create_account(session['node_address'])
     return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
 
-@app.route('/portal/organization')
-def organization_portal():
-    if session.get('role') != 'Organization': return redirect(url_for('news'))
-    acc = get_or_create_account(session['node_address'])
-    if not acc.password_changed: return redirect(url_for('change_password_page'))
-    return render_template('organization_portal.html', address=session['node_address'], balance=acc.balance)
-
 @app.route('/portal/admin')
 def admin_portal():
     if session.get('role') != 'Admin': return redirect(url_for('news'))
@@ -117,16 +109,18 @@ def api_ai_monitor():
 
 @app.route('/api/transfer', methods=['POST'])
 def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if 'node_address' not in session: 
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
     MIN_TRANSFER = 0.0000001
     sender = get_or_create_account(session['node_address'])
     recipient_addr = request.form.get('recipient', '').strip()
     
-    if not recipient_addr or recipient_addr == sender.address:
+    if not recipient_addr:
         return jsonify({"status": "error", "message": "Invalid recipient"}), 400
         
     recipient = get_or_create_account(recipient_addr)
+    
     try:
         amount = float(request.form.get('amount', 0))
     except: return jsonify({"status": "error", "message": "Invalid amount"}), 400
@@ -134,33 +128,15 @@ def api_transfer():
     if amount < MIN_TRANSFER:
         return jsonify({"status": "error", "message": f"Min transfer: {MIN_TRANSFER}"}), 400
     
-    if session.get('role') != 'Admin' and sender.balance < amount:
-        return jsonify({"status": "error", "message": "Insufficient balance"}), 400
-    
-    sender.balance -= amount
-    recipient.balance += amount
-    db.session.commit()
-    return jsonify({"status": "success", "new_balance": sender.balance})
-
-
-@app.route('/api/transfer', methods=['POST'])
-def api_transfer():
-    if 'node_address' not in session: return jsonify({"status": "error"}), 401
-    sender = Account.query.filter_by(address=session['node_address']).first()
-    recipient = get_or_create_account(request.form.get('recipient', '').strip())
-    
-    try:
-        amount = float(request.form.get('amount', 0))
-    except: return jsonify({"status": "error", "message": "Invalid amount"}), 400
-    
+    # ADMIN LOGIC: Admin does not need balance to send
     if session.get('role') != 'Admin':
-        if amount < 0.0000001 or not sender or sender.balance < amount:
-            return jsonify({"status": "error", "message": "Insufficient/Invalid"}), 400
+        if sender.balance < amount:
+            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
         sender.balance -= amount
     
     recipient.balance += amount
     db.session.commit()
-    return jsonify({"status": "success", "new_balance": sender.balance if sender else 0})
+    return jsonify({"status": "success", "new_balance": sender.balance})
 
 @app.route('/auth/logout')
 def auth_logout():
