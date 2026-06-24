@@ -48,14 +48,11 @@ def home():
 
 @app.route('/explorer')
 def explorer():
-    # It MUST return render_template for the context_processor to work
     return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
 
 @app.route('/news')
 def news():
-    # Ensure every single route uses render_template
     return render_template('news.html')
-
 
 @app.route('/docs')
 def docs(): return render_template('docs.html')
@@ -68,9 +65,6 @@ def core(): return render_template('core.html')
 
 @app.route('/markets')
 def markets(): return render_template('markets.html')
-
-@app.route('/news')
-def news(): return render_template('news.html')
 
 # --- PORTALS ---
 @app.route('/portal/user')
@@ -94,7 +88,6 @@ def admin_portal():
 def organization_portal():
     if session.get('role') != 'Organization': return redirect(url_for('news'))
     acc = get_or_create_account(session['node_address'])
-    if not acc.password_changed: return redirect(url_for('change_password_page'))
     return render_template('organization_portal.html', address=acc.address, balance=acc.balance)
 
 # --- AUTH & API LAYER ---
@@ -141,7 +134,6 @@ def api_transfer():
     if amount < MIN_TRANSFER:
         return jsonify({"status": "error", "message": f"Min transfer: {MIN_TRANSFER}"}), 400
     
-    # ADMIN LOGIC: Admin does not need balance to send
     if session.get('role') != 'Admin':
         if sender.balance < amount:
             return jsonify({"status": "error", "message": "Insufficient balance"}), 400
