@@ -28,16 +28,31 @@ def get_or_create_account(address):
         db.session.commit()
     return acc
 
-# --- MIDDLEWARE & NAVIGATION ---
-@app.context_processor
-def inject_auth_status():
-    return dict(is_logged_in='node_address' in session, current_role=session.get('role'))
-
+# --- NAVIGATION ROUTES ---
 @app.route('/')
 def home():
     total_nodes = Account.query.count()
     total_supply = db.session.query(db.func.sum(Account.balance)).scalar() or 0
     return render_template('index.html', total_nodes=total_nodes, total_supply=total_supply)
+
+@app.route('/explorer')
+def explorer():
+    return render_template('explorer.html', ledger={acc.address: acc.balance for acc in Account.query.all()})
+
+@app.route('/docs')
+def docs(): return render_template('docs.html')
+
+@app.route('/ussd')
+def ussd(): return render_template('ussd.html')
+
+@app.route('/core')
+def core(): return render_template('core.html')
+
+@app.route('/markets')
+def markets(): return render_template('markets.html')
+
+@app.route('/news')
+def news(): return render_template('news.html')
 
 # --- AUTH & PORTALS ---
 @app.route('/auth/login', methods=['POST'])
@@ -65,16 +80,12 @@ def auth_login():
     
     if role == "Organization" and not acc.password_changed:
         return jsonify({"status": "success", "redirect": "/auth/change-password"})
-        
     return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
 @app.route('/auth/change-password', methods=['GET', 'POST'])
 def change_password_page():
     if 'node_address' not in session: return redirect(url_for('home'))
     if request.method == 'POST':
-        new_pass = request.form.get('new_password')
-        if new_pass == "Organization@portal":
-            return render_template('change_password.html', error="New password cannot be default.")
         acc = get_or_create_account(session['node_address'])
         acc.password_changed = True
         session['role'] = 'Organization'
@@ -95,10 +106,14 @@ def miner_portal():
     acc = get_or_create_account(session['node_address'])
     return render_template('miner_portal.html', address=session['node_address'], balance=acc.balance)
 
-# --- AI & API LAYER ---
+@app.route('/portal/admin')
+def admin_portal():
+    if session.get('role') != 'Admin': return redirect(url_for('news'))
+    return render_template('admin_portal.html', ledger={a.address: a.balance for a in Account.query.all()})
+
+# --- API LAYER ---
 @app.route('/api/ai-monitor', methods=['GET'])
 def api_ai_monitor():
-    # Automated ledger integrity audit
     malicious = Account.query.filter(Account.balance < 0).all()
     for acc in malicious:
         acc.balance = 0.0
@@ -113,10 +128,8 @@ def api_transfer():
     try:
         amount = float(request.form.get('amount', 0))
     except: return jsonify({"status": "error"}), 400
-    
     if session.get('role') != 'Admin' and (amount < 0 or sender.balance < amount):
         return jsonify({"status": "error"}), 400
-    
     sender.balance -= amount
     recipient.balance += amount
     db.session.commit()
