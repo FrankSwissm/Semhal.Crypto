@@ -22,6 +22,10 @@
             <a href="/core">Core</a>
             <a href="/markets">Markets</a>
             <a href="/news">News</a>
+            
+            {% if is_authenticated %}
+                <a href="/portal/{{ user_role.lower() }}" style="color: #00ffa3; font-weight: bold; border: 1px solid #00ffa3; padding: 0 10px;">MY PORTAL</a>
+            {% endif %}
         </nav>
         <div class="auth-nav-block">
             <span class="status-pill">AI ACTIVE</span>
@@ -59,7 +63,7 @@
                 if (data.malicious_detected) {
                     const entry = document.createElement('div');
                     entry.style.color = "#ff4444";
-                    entry.innerHTML = `[ALERT] Malicious Transaction Purged: ${data.sender} -> ${data.receiver}`;
+                    entry.innerHTML = `[ALERT] Malicious Transaction Purged at ${new Date().toLocaleTimeString()}`;
                     logBox.prepend(entry);
                 } else if(Math.random() > 0.8) {
                     const pulse = document.createElement('div');
