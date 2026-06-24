@@ -83,27 +83,32 @@ def auth_login():
     get_or_create_account(address)
     return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
-@app.route('/auth/change-password', methods=['GET', 'POST'])
-def change_password_page():
-    if 'node_address' not in session or session.get('role') != 'Organization':
-        return redirect(url_for('news'))
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    address = request.form.get('address', '').strip()
+    password = request.form.get('password', '')
     
-    if request.method == 'POST':
-        new_pass = request.form.get('new_password')
+    # Unified role logic
+    if password == "Organization@portal":
+        role = "Organization"
+    elif password == "admin123":
+        role = "Admin"
+    elif password == "miner123":
+        role = "Miner"
+    else:
+        role = "User"
         
-        # Security Check: Ensure new password is not the original portal password
-        if new_pass == "Organization@portal":
-            return render_template('change_password.html', error="New password cannot be the default portal password.")
+    session.permanent = True
+    session['node_address'] = address
+    session['role'] = role
+    
+    acc = get_or_create_account(address)
+    
+    # NEW LOGIC: If Organization and password hasn't been changed, send to password update
+    if role == "Organization" and not acc.password_changed:
+        return jsonify({"status": "success", "redirect": "/auth/change-password"})
         
-        # Update Database
-        acc = get_or_create_account(session['node_address'])
-        acc.password_changed = True
-        db.session.commit()
-        
-        # Correct Redirect: Send back to the organization portal
-        return redirect(url_for('organization_portal'))
-        
-    return render_template('change_password.html')
+    return jsonify({"status": "success", "redirect": f"/portal/{role.lower()}"})
 
 
 @app.route('/auth/logout')
