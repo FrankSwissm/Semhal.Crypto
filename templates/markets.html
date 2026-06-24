@@ -44,9 +44,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>BTC / Bitcoin</td><td class="price">$96,430.50</td><td class="change">+1.82%</td></tr>
-                        <tr><td>ETH / Ethereum</td><td class="price">$3,480.25</td><td class="change">+2.41%</td></tr>
-                        <tr><td>SOL / Solana</td><td class="price">$184.60</td><td class="change">+5.10%</td></tr>
+                        {{ range .crypto_data }}
+                        <tr>
+                            <td>{{ .Name }}</td>
+                            <td class="price">{{ .Price }}</td>
+                            <td class="change">{{ .Delta }}</td>
+                        </tr>
+                        {{ end }}
                     </tbody>
                 </table>
             </div>
@@ -62,9 +66,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>DXY / US Dollar Index</td><td class="price">102.45</td><td class="change" style="color: #ff4a4a;">-0.12%</td></tr>
-                        <tr><td>XAU / Gold Ounce Reference</td><td class="price">$2,410.80</td><td class="change">+0.65%</td></tr>
-                        <tr><td>BRENT / Crude Oil barrel</td><td class="price">$79.35</td><td class="change">+1.15%</td></tr>
+                        {{ range .macro_data }}
+                        <tr>
+                            <td>{{ .Name }}</td>
+                            <td class="price">{{ .Price }}</td>
+                            <td class="change" style="{{ if .IsNegative }}color: #ff4a4a;{{ end }}">{{ .Delta }}</td>
+                        </tr>
+                        {{ end }}
                     </tbody>
                 </table>
             </div>
