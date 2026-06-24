@@ -2,70 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ORG PORTAL // Semhal Ledger</title>
+    <title>SECURITY UPDATE // Semhal Ledger</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        body { background-color: #0d1117; color: #fff; font-family: sans-serif; margin: 0; }
-        .portal-container { max-width: 1100px; margin: 3rem auto; padding: 0 1rem; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .box { background: #161b22; border: 1px solid #30363d; padding: 2rem; border-radius: 12px; }
-        .submit-input { width: 100%; padding: 0.8rem; background: #0d1117; border: 1px solid #00f2ff; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 1rem; }
+        body { background-color: #0d1117; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #161b22; border: 1px solid #00f2ff; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
+        .submit-input { width: 100%; padding: 0.8rem; background: #0d1117; border: 1px solid #30363d; color: #fff; margin-bottom: 1rem; border-radius: 4px; box-sizing: border-box; }
         .action-btn { width: 100%; background: #00f2ff; color: #000; font-weight: bold; padding: 0.85rem; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase; }
-        .table-style { width: 100%; border-collapse: collapse; margin-top: 1rem; color: #c9d1d9; }
-        .table-style th { border-bottom: 2px solid #00f2ff; padding: 12px; text-align: left; }
-        .table-style td { padding: 12px; border-bottom: 1px solid #30363d; }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">SEMHAL <span>LEDGER</span></div>
-        <nav>
-            <a href="/">Dashboard</a>
-            <a href="/explorer">Network Explorer</a>
-            <a href="/docs">Integration Architecture</a>
-            <a href="/ussd">USSD Gateway</a>
-            <a href="/core">System Core</a>
-            <a href="/markets">Market Monitor</a>
-            <a href="/news">Network News</a>
-        </nav>
-        <div class="auth-nav-block">
-            <a href="/portal/organization" class="runtime-badge" style="text-decoration:none; background: rgba(0, 242, 255, 0.2); border-color: #00f2ff; color: #00f2ff;">ORG PORTAL</a>
-            <a href="/auth/logout" class="logout-btn">Disconnect</a>
-        </div>
-    </header>
-
-    <div class="container portal-container">
-        <div style="margin-bottom: 2rem;">
-            <h1>Organization Management Console</h1>
-            <p style="color: #8b949e;">Secure Node: <span style="font-family: monospace; color: #00f2ff;">{{ address }}</span> | Balance: <strong>{{ balance }} sUSD</strong></p>
-        </div>
-
-        <div class="grid">
-            <div class="box">
-                <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Payroll & Bulk Dispatch</h3>
-                <label>CSV Bulk Upload</label>
-                <input type="file" id="csvFile" accept=".csv" class="submit-input">
-                <label>Manual Batch (Address,Amount)</label>
-                <textarea id="manualInput" class="submit-input" placeholder="0x...,10.5&#10;0x...,20.0" rows="5"></textarea>
-                <button class="action-btn" onclick="processBulk()">EXECUTE PAYMENTS</button>
-            </div>
-
-            <div class="box">
-                <h3 style="border-bottom: 1px solid #30363d; padding-bottom: 0.5rem;">Recent Ledger Activity</h3>
-                <table class="table-style" id="historyTable">
-                    <thead><tr><th>Recipient</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        <tr><td colspan="4" style="text-align:center; color:#8b949e;">No recent transactions.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="box">
+        <h2 style="color: #00f2ff;">Security Update Required</h2>
+        <p style="color: #8b949e; font-size: 0.9rem; margin-bottom: 2rem;">As an organization user, you must update your portal password to continue accessing the ledger.</p>
+        <form method="POST">
+            <input type="password" name="new_password" class="submit-input" placeholder="Enter New Secure Password" required>
+            <button type="submit" class="action-btn">ACTIVATE ACCOUNT</button>
+        </form>
     </div>
-
-    <script>
-        async function processBulk() {
-            alert("Dispatching batch transactions to the ledger...");
-        }
-    </script>
 </body>
 </html>
