@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html/template" // Required for FuncMap
 	"net/http"
 	"os"
 	"time"
@@ -33,13 +34,23 @@ func main() {
 
 	r := gin.Default()
 
-	// 1. Serve static files (CSS/JS) and templates
+	// Register the 'loop' function for templates
+	r.SetFuncMap(template.FuncMap{
+		"loop": func(n int) []int {
+			res := make([]int, n)
+			for i := 0; i < n; i++ {
+				res[i] = i
+			}
+			return res
+		},
+	})
+
+	// 1. Serve static files and templates
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
 	// 2. Frontend Routes
 	r.GET("/", func(c *gin.Context) {
-		// Replace 'false' with actual logic checking if user is logged in
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"is_logged_in": false,
 			"total_supply": "1,250,000",
@@ -51,12 +62,9 @@ func main() {
 	r.POST("/auth/login", loginHandler)
 	r.POST("/api/transfer", authMiddleware(), transferHandler)
 	r.GET("/api/ai-monitor", aiMonitorHandler)
-	
-	// API endpoint for dashboard charts
 	r.GET("/api/balances", func(c *gin.Context) {
 		var accounts []Account
 		db.Limit(5).Find(&accounts)
-		
 		accMap := make(map[string]float64)
 		for _, acc := range accounts {
 			accMap[acc.Address] = acc.Balance
@@ -67,7 +75,7 @@ func main() {
 	r.Run(":8085")
 }
 
-// --- Middleware & Handlers ---
+// --- Middleware & Handlers remain the same ---
 
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -90,12 +98,10 @@ func loginHandler(c *gin.Context) {
 	pass := c.PostForm("password")
 	var acc Account
 	db.FirstOrCreate(&acc, Account{Address: addr})
-
 	role := "User"
 	if pass == "admin123" { role = "Admin" }
 	if pass == "Organization@portal" { role = "Organization"; acc.IsOrg = true; db.Save(&acc) }
 	if pass == "miner123" { role = "Miner" }
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"address": addr,
 		"role":    role,
@@ -109,7 +115,7 @@ func transferHandler(c *gin.Context) {
 	senderAddr, _ := c.Get("address")
 	role, _ := c.Get("role")
 	var input struct {
-		Recipient string  `json:"recipient"`
+		Recipient string `json:"recipient"`
 		Amount    float64 `json:"amount"`
 	}
 	c.ShouldBindJSON(&input)
