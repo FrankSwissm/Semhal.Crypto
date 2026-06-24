@@ -33,7 +33,6 @@ def get_or_create_account(address):
 # --- GLOBAL CONTEXT FOR NAVIGATION ---
 @app.context_processor
 def inject_user_info():
-    # This makes user_address, user_role, and is_authenticated available to ALL pages
     return dict(
         user_address=session.get('node_address'),
         user_role=str(session.get('role', 'user')).lower(),
@@ -65,7 +64,7 @@ def markets(): return render_template('markets.html')
 @app.route('/news')
 def news(): return render_template('news.html')
 
-# --- PORTAL ROUTES ---
+# --- PORTALS ---
 @app.route('/portal/user')
 def user_portal():
     if 'node_address' not in session: return redirect(url_for('news'))
@@ -90,7 +89,7 @@ def organization_portal():
     if not acc.password_changed: return redirect(url_for('change_password_page'))
     return render_template('organization_portal.html', address=acc.address, balance=acc.balance)
 
-# --- AUTH & API ---
+# --- AUTH & API LAYER ---
 @app.route('/auth/login', methods=['POST'])
 def auth_login():
     address = request.form.get('address', '').strip()
@@ -124,7 +123,7 @@ def api_transfer():
     sender = get_or_create_account(session['node_address'])
     recipient_addr = request.form.get('recipient', '').strip()
     
-    if not recipient_addr: return jsonify({"status": "error", "message": "No recipient"}), 400
+    if not recipient_addr: return jsonify({"status": "error", "message": "Invalid recipient"}), 400
     recipient = get_or_create_account(recipient_addr)
     
     try:
@@ -134,7 +133,7 @@ def api_transfer():
     if amount < MIN_TRANSFER:
         return jsonify({"status": "error", "message": f"Min transfer: {MIN_TRANSFER}"}), 400
     
-    # ADMIN LOGIC: Admins can distribute without having the balance
+    # ADMIN LOGIC: Admin does not need balance to send
     if session.get('role') != 'Admin':
         if sender.balance < amount:
             return jsonify({"status": "error", "message": "Insufficient balance"}), 400
