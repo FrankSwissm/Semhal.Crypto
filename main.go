@@ -60,7 +60,8 @@ func loginHandler(c *gin.Context) {
 
 	role := "User"
 	if pass == "admin123" { role = "Admin" }
-	if pass == "Organization@portal" { role = "Organization" }
+	if pass == "Organization@portal" { role = "Organization"; acc.IsOrg = true; db.Save(&acc) }
+	if pass == "miner123" { role = "Miner" }
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"address": addr,
