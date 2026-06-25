@@ -10,12 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// Account structure with role and password fields
 type Account struct {
 	Address         string  `gorm:"primaryKey" json:"address"`
 	Password        string  `json:"-"`
 	Balance         float64 `gorm:"default:100.0" json:"balance"`
-	Role            string  `gorm:"default:'user'" json:"role"` // 'user', 'miner', 'org', 'admin'
+	Role            string  `gorm:"default:'user'" json:"role"`
 	PasswordChanged bool    `gorm:"default:false" json:"password_changed"`
 }
 
@@ -23,7 +22,6 @@ var db *gorm.DB
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
-
 	dsn := os.Getenv("DATABASE_URL")
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -34,31 +32,17 @@ func main() {
 
 	r := gin.Default()
 	r.SetTrustedProxies([]string{"127.0.0.1"})
-
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// Health Check
 	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
-
-	// Public Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
-	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
-	r.GET("/docs", func(c *gin.Context) { c.HTML(http.StatusOK, "docs.html", nil) })
-	r.GET("/ussd", func(c *gin.Context) { c.HTML(http.StatusOK, "ussd.html", nil) })
-	r.GET("/core", func(c *gin.Context) { c.HTML(http.StatusOK, "core.html", nil) })
-	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// Portals
-	r.GET("/portal/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
-	r.GET("/portal/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
-	r.GET("/portal/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
-
-	// Auth & API
+	// Auth Handlers
 	r.POST("/auth/login", loginHandler)
-	r.POST("/api/password/change", changePasswordHandler)
-	r.POST("/api/transfer", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "success"}) })
+	r.POST("/auth/register", registerHandler)
+	r.POST("/auth/recover", recoverHandler)
 
 	r.Run(":8085")
 }
@@ -66,30 +50,30 @@ func main() {
 func loginHandler(c *gin.Context) {
 	addr := c.PostForm("address")
 	pass := c.PostForm("password")
-	role := c.PostForm("role")
-
 	var acc Account
-	err := db.Where("address = ?", addr).First(&acc).Error
-	if err != nil {
-		hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-		acc = Account{Address: addr, Password: string(hashed), Role: role}
-		db.Create(&acc)
+	if err := db.Where("address = ?", addr).First(&acc).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not found"})
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(acc.Password), []byte(pass)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/" + acc.Role})
 }
 
-func changePasswordHandler(c *gin.Context) {
+func registerHandler(c *gin.Context) {
 	addr := c.PostForm("address")
-	newPass := c.PostForm("new_password")
+	pass := c.PostForm("password")
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+	db.Create(&Account{Address: addr, Password: string(hashed), Role: "user"})
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
 
-	var acc Account
-	if err := db.Where("address = ?", addr).First(&acc).Error; err == nil {
-		if acc.Role == "org" {
-			hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
-			db.Model(&acc).Updates(Account{Password: string(hashed), PasswordChanged: true})
-			c.JSON(http.StatusOK, gin.H{"status": "Password updated"})
-			return
-		}
-	}
-	c.JSON(http.StatusForbidden, gin.H{"status": "Unauthorized"})
+func recoverHandler(c *gin.Context) {
+	addr := c.PostForm("address")
+	newPass := c.PostForm("password")
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+	db.Model(&Account{}).Where("address = ?", addr).Update("password", string(hashed))
+	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful"})
 }
