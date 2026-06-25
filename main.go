@@ -35,14 +35,30 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
+	// 1. System Routes
 	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	// 2. Navigation Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
+	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
+	r.GET("/docs", func(c *gin.Context) { c.HTML(http.StatusOK, "docs.html", nil) })
+	r.GET("/ussd", func(c *gin.Context) { c.HTML(http.StatusOK, "ussd.html", nil) })
+	r.GET("/core", func(c *gin.Context) { c.HTML(http.StatusOK, "core.html", nil) })
+	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// Auth Handlers
+	// 3. Portal Routes
+	r.GET("/portal/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
+	r.GET("/portal/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
+	r.GET("/portal/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
+
+	// 4. Auth Handlers
 	r.POST("/auth/login", loginHandler)
 	r.POST("/auth/register", registerHandler)
 	r.POST("/auth/recover", recoverHandler)
+
+	// 5. API Routes
+	r.POST("/api/transfer", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "success"}) })
 
 	r.Run(":8085")
 }
@@ -67,7 +83,7 @@ func registerHandler(c *gin.Context) {
 	pass := c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	db.Create(&Account{Address: addr, Password: string(hashed), Role: "user"})
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/user"})
 }
 
 func recoverHandler(c *gin.Context) {
@@ -75,5 +91,5 @@ func recoverHandler(c *gin.Context) {
 	newPass := c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 	db.Model(&Account{}).Where("address = ?", addr).Update("password", string(hashed))
-	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful"})
+	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
