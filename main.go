@@ -43,11 +43,21 @@ var (
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	dsn := os.Getenv("DATABASE_URL")
+	
+	// Database Connection with Retry
 	var err error
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic("Failed to connect to database")
+	for i := 0; i < 5; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		fmt.Printf("Database connection attempt %d failed: %v. Retrying in 5s...\n", i+1, err)
+		time.Sleep(5 * time.Second)
 	}
+	if err != nil {
+		panic("Failed to connect to database after 5 attempts")
+	}
+	
 	db.AutoMigrate(&Account{}, &Transaction{})
 
 	// Initialize Treasury
@@ -84,7 +94,9 @@ func main() {
 	r.POST("/api/transfer", transferHandler)
 	r.GET("/api/history", AuthRequired, historyHandler)
 
-	r.Run(":8085")
+	port := os.Getenv("PORT")
+	if port == "" { port = "8085" }
+	r.Run(":" + port)
 }
 
 // --- Oracle & Auth Logic ---
