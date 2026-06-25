@@ -130,10 +130,25 @@
 
         async function handleForm(e, type) {
             e.preventDefault();
-            const res = await fetch('/auth/' + type, { method: 'POST', body: new FormData(e.target) });
+            
+            // Determine the actual endpoint based on mode
+            let endpoint = '/auth/' + type;
+            if (type === 'auth') {
+                const mode = document.getElementById('auth-mode').value;
+                endpoint = '/auth/' + mode;
+            }
+
+            const res = await fetch(endpoint, { 
+                method: 'POST', 
+                body: new FormData(e.target) 
+            });
+            
             const data = await res.json();
-            if(data.redirect) window.location.href = data.redirect;
-            else alert(data.status || data.error);
+            if(data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.status || data.error || "Operation failed");
+            }
         }
     </script>
 </body>
