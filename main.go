@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
@@ -34,6 +36,11 @@ func main() {
 	db.AutoMigrate(&Account{})
 
 	r := gin.Default()
+	
+	// Session Middleware Setup
+	store := cookie.NewStore([]byte("secret-key-change-me"))
+	r.Use(sessions.Sessions("mysession", store))
+
 	r.SetTrustedProxies([]string{"127.0.0.1"})
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
@@ -47,11 +54,15 @@ func main() {
 	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// 2. Portal Routes
-	r.GET("/portal/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", nil) })
-	r.GET("/portal/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
-	r.GET("/portal/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
-	r.GET("/portal/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
+	// 2. Portal Routes (with Auth Check)
+	portal := r.Group("/portal")
+	portal.Use(AuthRequired)
+	{
+		portal.GET("/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", nil) })
+		portal.GET("/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
+		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
+		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
+	}
 
 	// 3. Auth Handlers
 	r.POST("/auth/login", loginHandler)
@@ -64,6 +75,17 @@ func main() {
 	r.POST("/api/transfer", transferHandler)
 
 	r.Run(":8085")
+}
+
+// Middleware: Verify Session
+func AuthRequired(c *gin.Context) {
+	session := sessions.Default(c)
+	if session.Get("address") == nil {
+		c.Redirect(http.StatusFound, "/news")
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 // Handlers
@@ -79,6 +101,13 @@ func loginHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	
+	// Set Session
+	session := sessions.Default(c)
+	session.Set("address", acc.Address)
+	session.Set("role", acc.Role)
+	session.Save()
+
 	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/" + acc.Role})
 }
 
@@ -109,7 +138,6 @@ func transferHandler(c *gin.Context) {
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
-	// Deduct from Treasury and add to receiver
 	db.Model(&Account{}).Where("address = ?", "TREASURY_ROOT").Update("balance", gorm.Expr("balance - ?", amount))
 	db.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", amount))
 	
@@ -117,5 +145,8 @@ func transferHandler(c *gin.Context) {
 }
 
 func logoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear()
+	session.Save()
 	c.Redirect(http.StatusFound, "/news")
 }
