@@ -130,7 +130,11 @@ func StartOracleWorker() {
 func GetRate(exchange string) float64 {
 	mu.RLock()
 	defer mu.RUnlock()
-	return RateCache[exchange]
+	rate, ok := RateCache[exchange]
+	if !ok || rate <= 0 {
+		return 1.0 // Safety fallback
+	}
+	return rate
 }
 
 func AuthRequired(c *gin.Context) {
@@ -192,7 +196,6 @@ func transferHandler(c *gin.Context) {
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// 1. Verify Sender
 		var sender Account
 		if err := tx.Where("address = ?", senderAddr).First(&sender).Error; err != nil {
 			return fmt.Errorf("sender account not found")
@@ -201,12 +204,10 @@ func transferHandler(c *gin.Context) {
 			return fmt.Errorf("insufficient funds")
 		}
 
-		// 2. Deduct from Sender
 		if err := tx.Model(&sender).Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
 			return err
 		}
 
-		// 3. Add to Receiver (Create if missing)
 		var receiverAcc Account
 		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
 			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
@@ -219,7 +220,6 @@ func transferHandler(c *gin.Context) {
 			}
 		}
 
-		// 4. Log Transaction
 		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
 		return nil
 	})
