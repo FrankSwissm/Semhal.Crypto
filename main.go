@@ -184,31 +184,54 @@ func ledgerHandler(c *gin.Context) {
 func transferHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	senderAddr := session.Get("address").(string)
-	receiver, exchange := c.PostForm("recipient"), c.PostForm("exchange")
+	receiver := c.PostForm("recipient")
+	exchange := c.PostForm("exchange")
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, effectiveAmount).
-			Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
+		// 1. Verify Sender
+		var sender Account
+		if err := tx.Where("address = ?", senderAddr).First(&sender).Error; err != nil {
+			return fmt.Errorf("sender account not found")
+		}
+		if sender.Balance < effectiveAmount {
+			return fmt.Errorf("insufficient funds")
+		}
+
+		// 2. Deduct from Sender
+		if err := tx.Model(&sender).Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
 			return err
 		}
+
+		// 3. Add to Receiver (Create if missing)
+		var receiverAcc Account
+		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
+			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
+			if err := tx.Create(&newAcc).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Model(&receiverAcc).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error; err != nil {
+				return err
+			}
+		}
+
+		// 4. Log Transaction
 		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
-		return tx.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error
+		return nil
 	})
 
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Settlement failed"})
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
 
-	// Fetch updated sender balance to resolve "undefined" in UI
 	var updatedAcc Account
 	db.Where("address = ?", senderAddr).First(&updatedAcc)
-
-	c.JSON(http.StatusOK, gin.H{"status": "success", "settled": effectiveAmount, "new_balance": updatedAcc.Balance})
+	c.JSON(http.StatusOK, gin.H{"status": "success", "new_balance": updatedAcc.Balance})
 }
 
 func historyHandler(c *gin.Context) {
