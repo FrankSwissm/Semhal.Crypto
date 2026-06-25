@@ -54,7 +54,7 @@ func main() {
 	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// 2. Dynamic Portal Navigation (Use this link in your Nav bar)
+	// 2. Dynamic Portal Navigation
 	r.GET("/portal/my-portal", AuthRequired, func(c *gin.Context) {
 		session := sessions.Default(c)
 		role := session.Get("role").(string)
@@ -66,7 +66,13 @@ func main() {
 	portal.Use(AuthRequired)
 	{
 		portal.GET("/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", gin.H{"role": "admin"}) })
-		portal.GET("/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", gin.H{"role": "user"}) })
+		portal.GET("/user", func(c *gin.Context) {
+			session := sessions.Default(c)
+			addr := session.Get("address").(string)
+			var acc Account
+			db.Where("address = ?", addr).First(&acc)
+			c.HTML(http.StatusOK, "user_portal.html", gin.H{"role": "user", "address": acc.Address, "balance": acc.Balance})
+		})
 		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", gin.H{"role": "organization"}) })
 		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", gin.H{"role": "miner"}) })
 	}
@@ -140,14 +146,38 @@ func ledgerHandler(c *gin.Context) {
 }
 
 func transferHandler(c *gin.Context) {
-	receiver := c.PostForm("receiver")
-	var amount float64
-	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
-
-	db.Model(&Account{}).Where("address = ?", "TREASURY_ROOT").Update("balance", gorm.Expr("balance - ?", amount))
-	db.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", amount))
+	session := sessions.Default(c)
+	senderAddr := session.Get("address").(string)
+	receiver := c.PostForm("recipient")
+	amountStr := c.PostForm("amount")
 	
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	var amount float64
+	fmt.Sscanf(amountStr, "%f", &amount)
+
+	// Database Transaction for safety
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Deduct from sender
+		if err := tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, amount).
+			Update("balance", gorm.Expr("balance - ?", amount)).Error; err != nil {
+			return err
+		}
+		// Add to receiver
+		if err := tx.Model(&Account{}).Where("address = ?", receiver).
+			Update("balance", gorm.Expr("balance + ?", amount)).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Insufficient funds or invalid address"})
+		return
+	}
+
+	// Fetch new balance
+	var updatedAcc Account
+	db.Where("address = ?", senderAddr).First(&updatedAcc)
+	c.JSON(http.StatusOK, gin.H{"status": "success", "new_balance": updatedAcc.Balance})
 }
 
 func logoutHandler(c *gin.Context) {
