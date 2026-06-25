@@ -115,7 +115,6 @@ func main() {
 func StartOracleWorker() {
 	ticker := time.NewTicker(60 * time.Second)
 	for range ticker.C {
-		// Live Rate Fetching Simulation: Real-world integration point
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
@@ -189,7 +188,6 @@ func transferHandler(c *gin.Context) {
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
-	// API-Driven Settlement: Validate rate before transaction
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -197,7 +195,6 @@ func transferHandler(c *gin.Context) {
 			Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
 			return err
 		}
-		// Log the transaction with the specific exchange rate used for auditability
 		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
 		return tx.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error
 	})
@@ -206,13 +203,17 @@ func transferHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Settlement failed"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success", "settled": effectiveAmount})
+
+	// Fetch updated sender balance to resolve "undefined" in UI
+	var updatedAcc Account
+	db.Where("address = ?", senderAddr).First(&updatedAcc)
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "settled": effectiveAmount, "new_balance": updatedAcc.Balance})
 }
 
 func historyHandler(c *gin.Context) {
 	var txs []Transaction
 	db.Order("created_at desc").Limit(10).Find(&txs)
-	// Explicit JSON usage for API output
 	payload, _ := json.Marshal(txs)
 	c.Data(http.StatusOK, "application/json", payload)
 }
