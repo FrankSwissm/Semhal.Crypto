@@ -59,6 +59,7 @@ func main() {
 
 	// 5. API Routes
 	r.POST("/api/transfer", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "success"}) })
+	r.GET("/api/ledger", ledgerHandler)
 
 	r.Run(":8085")
 }
@@ -92,4 +93,13 @@ func recoverHandler(c *gin.Context) {
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 	db.Model(&Account{}).Where("address = ?", addr).Update("password", string(hashed))
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
+}
+
+func ledgerHandler(c *gin.Context) {
+	var accounts []Account
+	if err := db.Find(&accounts).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch ledger"})
+		return
+	}
+	c.JSON(http.StatusOK, accounts)
 }
