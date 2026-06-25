@@ -37,20 +37,41 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody>
-                {{ range .ledger }}
+            <tbody id="ledger-body">
                 <tr>
-                    <td style="color: var(--accent-cyan);">{{ .Address }}</td>
-                    <td>{{ .Balance }}</td>
-                    <td><span class="status-pill">ACTIVE</span></td>
+                    <td colspan="3" style="text-align: center; padding: 2rem;">Loading ledger data...</td>
                 </tr>
-                {{ else }}
-                <tr>
-                    <td colspan="3" style="text-align: center; padding: 2rem;">No nodes detected in current epoch.</td>
-                </tr>
-                {{ end }}
             </tbody>
         </table>
     </div>
+
+    <script>
+        async function fetchLedger() {
+            try {
+                const response = await fetch('/api/ledger');
+                const accounts = await response.json();
+                const tbody = document.getElementById('ledger-body');
+
+                if (accounts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem;">No nodes detected in current epoch.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = accounts.map(acc => `
+                    <tr>
+                        <td style="color: var(--accent-cyan);">${acc.address}</td>
+                        <td>${acc.balance.toFixed(2)}</td>
+                        <td><span class="status-pill">ACTIVE</span></td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Failed to fetch ledger:", err);
+                document.getElementById('ledger-body').innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: #ff4a4a;">Error loading ledger.</td></tr>';
+            }
+        }
+
+        // Fetch immediately on load
+        fetchLedger();
+    </script>
 </body>
 </html>
