@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// --- Models ---
+// Account Model
 type Account struct {
 	Address         string  `gorm:"primaryKey" json:"address"`
 	Password        string  `json:"-"`
@@ -25,6 +25,7 @@ type Account struct {
 	PasswordChanged bool    `gorm:"default:false" json:"password_changed"`
 }
 
+// Transaction History Model
 type Transaction struct {
 	ID        uint      `gorm:"primaryKey"`
 	Sender    string    `json:"sender"`
@@ -41,23 +42,14 @@ var (
 )
 
 func main() {
+	// Gin Setup
 	gin.SetMode(gin.ReleaseMode)
 	dsn := os.Getenv("DATABASE_URL")
-	
-	// Database Connection with Retry
 	var err error
-	for i := 0; i < 5; i++ {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			break
-		}
-		fmt.Printf("Database connection attempt %d failed: %v. Retrying in 5s...\n", i+1, err)
-		time.Sleep(5 * time.Second)
-	}
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		panic("Failed to connect to database after 5 attempts")
+		panic("Failed to connect to database")
 	}
-	
 	db.AutoMigrate(&Account{}, &Transaction{})
 
 	// Initialize Treasury
@@ -66,9 +58,12 @@ func main() {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
 	}
 
+	// Start Oracle Infrastructure
 	go StartOracleWorker()
 
 	r := gin.Default()
+	
+	// Session Middleware Setup
 	store := cookie.NewStore([]byte("secret-key-change-me"))
 	r.Use(sessions.Sessions("mysession", store))
 
@@ -76,33 +71,59 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// Routes
+	// 1. Navigation Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/portfolio", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "portfolio.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
 	r.GET("/transactions", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "history.html", nil) })
-	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/docs", func(c *gin.Context) { c.HTML(http.StatusOK, "docs.html", nil) })
 	r.GET("/ussd", func(c *gin.Context) { c.HTML(http.StatusOK, "ussd.html", nil) })
 	r.GET("/core", func(c *gin.Context) { c.HTML(http.StatusOK, "core.html", nil) })
+	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
+	// 2. Dynamic Portal Navigation
+	r.GET("/portal/my-portal", AuthRequired, func(c *gin.Context) {
+		session := sessions.Default(c)
+		role := session.Get("role").(string)
+		c.Redirect(http.StatusFound, "/portal/"+role)
+	})
+
+	// 3. Portal Routes
+	portal := r.Group("/portal")
+	portal.Use(AuthRequired)
+	{
+		portal.GET("/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", gin.H{"role": "admin"}) })
+		portal.GET("/user", func(c *gin.Context) {
+			session := sessions.Default(c)
+			addr := session.Get("address").(string)
+			var acc Account
+			db.Where("address = ?", addr).First(&acc)
+			c.HTML(http.StatusOK, "user_portal.html", gin.H{"role": "user", "address": acc.Address, "balance": acc.Balance})
+		})
+		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", gin.H{"role": "organization"}) })
+		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", gin.H{"role": "miner"}) })
+	}
+
+	// 4. Auth Handlers
 	r.POST("/auth/login", loginHandler)
 	r.POST("/auth/register", registerHandler)
 	r.POST("/auth/recover", recoverHandler)
 	r.GET("/auth/logout", logoutHandler)
+
+	// 5. API Routes
+	r.GET("/api/ledger", ledgerHandler)
 	r.POST("/api/transfer", transferHandler)
 	r.GET("/api/history", AuthRequired, historyHandler)
 
-	port := os.Getenv("PORT")
-	if port == "" { port = "8085" }
-	r.Run(":" + port)
+	r.Run(":8085")
 }
 
-// --- Oracle & Auth Logic ---
+// Oracle Infrastructure
 func StartOracleWorker() {
 	ticker := time.NewTicker(60 * time.Second)
 	for range ticker.C {
+		// Median-based aggregation
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
@@ -119,6 +140,16 @@ func GetRate(exchange string) float64 {
 	defer mu.RUnlock()
 	if rate, ok := RateCache[exchange]; ok { return rate }
 	return 1.0
+}
+
+func AuthRequired(c *gin.Context) {
+	session := sessions.Default(c)
+	if session.Get("address") == nil {
+		c.Redirect(http.StatusFound, "/news")
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 func loginHandler(c *gin.Context) {
@@ -153,6 +184,12 @@ func recoverHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
 
+func ledgerHandler(c *gin.Context) {
+	var accounts []Account
+	db.Find(&accounts)
+	c.JSON(http.StatusOK, accounts)
+}
+
 func transferHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	senderAddr := session.Get("address").(string)
@@ -161,6 +198,7 @@ func transferHandler(c *gin.Context) {
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
 	effectiveAmount := amount * GetRate(exchange)
+
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, effectiveAmount).
 			Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
@@ -169,6 +207,7 @@ func transferHandler(c *gin.Context) {
 		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
 		return tx.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error
 	})
+
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Transaction failed"})
 		return
@@ -180,16 +219,6 @@ func historyHandler(c *gin.Context) {
 	var txs []Transaction
 	db.Order("created_at desc").Limit(10).Find(&txs)
 	c.JSON(http.StatusOK, txs)
-}
-
-func AuthRequired(c *gin.Context) {
-	session := sessions.Default(c)
-	if session.Get("address") == nil {
-		c.Redirect(http.StatusFound, "/news")
-		c.Abort()
-		return
-	}
-	c.Next()
 }
 
 func logoutHandler(c *gin.Context) {
