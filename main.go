@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Account Model
 type Account struct {
 	Address         string  `gorm:"primaryKey" json:"address"`
 	Password        string  `json:"-"`
@@ -21,6 +23,7 @@ type Account struct {
 var db *gorm.DB
 
 func main() {
+	// Gin Setup
 	gin.SetMode(gin.ReleaseMode)
 	dsn := os.Getenv("DATABASE_URL")
 	var err error
@@ -35,10 +38,7 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// 1. System Routes
-	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
-
-	// 2. Navigation Routes
+	// 1. Navigation Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
 	r.GET("/docs", func(c *gin.Context) { c.HTML(http.StatusOK, "docs.html", nil) })
@@ -47,23 +47,26 @@ func main() {
 	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// 3. Portal Routes
+	// 2. Portal Routes
+	r.GET("/portal/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", nil) })
 	r.GET("/portal/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
 	r.GET("/portal/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
 	r.GET("/portal/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
 
-	// 4. Auth Handlers
+	// 3. Auth Handlers
 	r.POST("/auth/login", loginHandler)
 	r.POST("/auth/register", registerHandler)
 	r.POST("/auth/recover", recoverHandler)
+	r.GET("/auth/logout", logoutHandler)
 
-	// 5. API Routes
-	r.POST("/api/transfer", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "success"}) })
+	// 4. API Routes
 	r.GET("/api/ledger", ledgerHandler)
+	r.POST("/api/transfer", transferHandler)
 
 	r.Run(":8085")
 }
 
+// Handlers
 func loginHandler(c *gin.Context) {
 	addr := c.PostForm("address")
 	pass := c.PostForm("password")
@@ -97,9 +100,22 @@ func recoverHandler(c *gin.Context) {
 
 func ledgerHandler(c *gin.Context) {
 	var accounts []Account
-	if err := db.Find(&accounts).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch ledger"})
-		return
-	}
+	db.Find(&accounts)
 	c.JSON(http.StatusOK, accounts)
+}
+
+func transferHandler(c *gin.Context) {
+	receiver := c.PostForm("receiver")
+	var amount float64
+	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
+
+	// Deduct from Treasury and add to receiver
+	db.Model(&Account{}).Where("address = ?", "TREASURY_ROOT").Update("balance", gorm.Expr("balance - ?", amount))
+	db.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", amount))
+	
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func logoutHandler(c *gin.Context) {
+	c.Redirect(http.StatusFound, "/news")
 }
