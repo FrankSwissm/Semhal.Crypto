@@ -1,20 +1,65 @@
-<table class="ledger-table">
-    <thead>
-        <tr>
-            <th>Node Identity Address</th>
-            <th>Ledger Balance Allocation</th>
-            <th>Administrative Authority</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{ range $index, $account := .ledger }}
-        <tr id="row-{{ $index }}">
-            <td style="color:#fff; word-break:break-all;">{{ $account.Address }}</td>
-            <td style="color:var(--accent-gold); font-weight:bold;">{{ $account.Balance }} sUSD</td>
-            <td>
-                <button class="purge-btn" onclick="purgeNode('{{ $account.Address }}', 'row-{{ $index }}')">Purge Node Record</button>
-            </td>
-        </tr>
-        {{ end }}
-    </tbody>
-</table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard // Semhal Ledger</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .dashboard-grid { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; }
+        .stat-card { background: var(--surface-card); padding: 1.5rem; border: 1px solid var(--border-glow); border-radius: 8px; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; background: var(--surface-card); }
+        th, td { padding: 1rem; border-bottom: 1px solid var(--border-glow); text-align: left; font-family: var(--font-mono); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Control Panel</h1>
+        <div class="dashboard-grid">
+            <aside>
+                <div class="stat-card">
+                    <h3>Treasury Oversight</h3>
+                    <p>Total Backing: <strong>$48,217,477,500</strong></p>
+                    <button class="btn" onclick="alert('Treasury Rebalanced')">Refresh Reserves</button>
+                </div>
+                <div class="stat-card">
+                    <h3>Conversion Service</h3>
+                    <form onsubmit="convertMoney(event)">
+                        <input type="text" id="target" placeholder="Recipient Address" class="submit-input">
+                        <input type="number" id="amount" placeholder="Amount SUSD" class="submit-input">
+                        <button type="submit" class="btn">Issue SUSD</button>
+                    </form>
+                </div>
+            </aside>
+            <main>
+                <h2>Active Network Ledger</h2>
+                <table id="ledger-table">
+                    <thead><tr><th>Address</th><th>Balance (SUSD)</th><th>Role</th></tr></thead>
+                    <tbody id="ledger-body"></tbody>
+                </table>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        async function fetchLedger() {
+            const res = await fetch('/api/ledger');
+            const data = await res.json();
+            const body = document.getElementById('ledger-body');
+            body.innerHTML = data.map(acc => `
+                <tr><td>${acc.address}</td><td>${acc.balance_susd}</td><td>${acc.role}</td></tr>
+            `).join('');
+        }
+        fetchLedger();
+
+        async function convertMoney(e) {
+            e.preventDefault();
+            const payload = new FormData();
+            payload.append('receiver', document.getElementById('target').value);
+            payload.append('amount', document.getElementById('amount').value);
+            await fetch('/api/transfer', { method: 'POST', body: payload });
+            alert("SUSD Conversion Issued");
+            fetchLedger();
+        }
+    </script>
+</body>
+</html>
