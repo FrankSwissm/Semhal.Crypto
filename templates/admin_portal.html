@@ -17,28 +17,31 @@
 </head>
 <body>
     <header>
-        <div class="logo">SEMHAL <span>ADMIN</span></div>
+        <div class="logo">SEMHAL <span>LEDGER</span></div>
         <nav>
             <a href="/">Dashboard</a>
             <a href="/explorer">Network Explorer</a>
+            <a href="/docs">Integration Architecture</a>
+            <a href="/ussd">USSD Gateway</a>
+            <a href="/core">System Core</a>
             <a href="/markets">Market Monitor</a>
             <a href="/news">Network News</a>
         </nav>
         <div class="auth-nav-block">
-            <a href="/portal/admin" class="runtime-badge" style="border-color: var(--accent-gold); color: var(--accent-gold);">MY PORTAL [ADMIN]</a>
+            <a href="/portal/my-portal" class="runtime-badge" style="border-color: var(--accent-gold); color: var(--accent-gold);">MY PORTAL [ADMIN]</a>
             <a href="/auth/logout" class="logout-btn">Disconnect</a>
         </div>
     </header>
 
     <div class="container portal-container">
         <div class="wallet-banner">
-            <h2>Treasury Treasury Oversight</h2>
+            <h2>Treasury Oversight</h2>
             <div class="balance-display">$48,217,477,500 <span style="font-size:1.5rem; color:#fff;">USD</span></div>
             <button class="action-btn" onclick="alert('Reserves Synced')">Sync Treasury Reserves</button>
         </div>
 
         <div class="admin-section">
-            <h3 style="border-bottom: 1px solid var(--border-glow); padding-bottom: 0.5rem;">SUSD Issuance & Ledger</h3>
+            <h3>SUSD Issuance & Ledger</h3>
             <form id="admin-transfer-form">
                 <input type="text" name="receiver" id="target" placeholder="Recipient Address" class="submit-input" required>
                 <input type="number" name="amount" id="amount" placeholder="Amount SUSD" class="submit-input" required>
