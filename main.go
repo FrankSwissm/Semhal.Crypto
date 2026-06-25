@@ -54,23 +54,30 @@ func main() {
 	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// 2. Portal Routes (with Auth Check)
+	// 2. Dynamic Portal Navigation (Use this link in your Nav bar)
+	r.GET("/portal/my-portal", AuthRequired, func(c *gin.Context) {
+		session := sessions.Default(c)
+		role := session.Get("role").(string)
+		c.Redirect(http.StatusFound, "/portal/"+role)
+	})
+
+	// 3. Portal Routes (with Auth Check)
 	portal := r.Group("/portal")
 	portal.Use(AuthRequired)
 	{
-		portal.GET("/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", nil) })
-		portal.GET("/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", nil) })
-		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", nil) })
-		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", nil) })
+		portal.GET("/admin", func(c *gin.Context) { c.HTML(http.StatusOK, "admin_portal.html", gin.H{"role": "admin"}) })
+		portal.GET("/user", func(c *gin.Context) { c.HTML(http.StatusOK, "user_portal.html", gin.H{"role": "user"}) })
+		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", gin.H{"role": "organization"}) })
+		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", gin.H{"role": "miner"}) })
 	}
 
-	// 3. Auth Handlers
+	// 4. Auth Handlers
 	r.POST("/auth/login", loginHandler)
 	r.POST("/auth/register", registerHandler)
 	r.POST("/auth/recover", recoverHandler)
 	r.GET("/auth/logout", logoutHandler)
 
-	// 4. API Routes
+	// 5. API Routes
 	r.GET("/api/ledger", ledgerHandler)
 	r.POST("/api/transfer", transferHandler)
 
@@ -102,7 +109,6 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 	
-	// Set Session
 	session := sessions.Default(c)
 	session.Set("address", acc.Address)
 	session.Set("role", acc.Role)
