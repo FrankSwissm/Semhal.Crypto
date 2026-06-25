@@ -5,37 +5,64 @@
     <title>Admin Dashboard // Semhal Ledger</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .dashboard-grid { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; }
-        .stat-card { background: var(--surface-card); padding: 1.5rem; border: 1px solid var(--border-glow); border-radius: 8px; margin-bottom: 1rem; }
-        table { width: 100%; border-collapse: collapse; background: var(--surface-card); }
-        th, td { padding: 1rem; border-bottom: 1px solid var(--border-glow); text-align: left; font-family: var(--font-mono); }
+        :root { --accent-gold: #d4af37; --surface-card: #0d1117; --border-glow: #30363d; --text-main: #c9d1d9; }
+        body { background: #010409; color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; }
+        
+        /* Navigation */
+        header { display: flex; justify-content: space-between; padding: 1.5rem 3rem; border-bottom: 1px solid var(--border-glow); align-items: center; }
+        .logo { font-weight: 800; letter-spacing: 2px; }
+        nav a { margin-right: 20px; color: #8b949e; text-decoration: none; font-size: 0.85rem; text-transform: uppercase; }
+        nav a:hover { color: var(--accent-gold); }
+
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+        .dashboard-grid { display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+        .stat-card { background: var(--surface-card); padding: 1.5rem; border: 1px solid var(--border-glow); border-radius: 12px; margin-bottom: 1.5rem; }
+        .submit-input { width: 100%; background: #010409; border: 1px solid var(--border-glow); padding: 0.8rem; color: white; border-radius: 6px; margin: 0.5rem 0; }
+        
+        table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface-card); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 1.2rem; border-bottom: 1px solid var(--border-glow); text-align: left; }
+        th { background: #161b22; color: var(--accent-gold); }
     </style>
 </head>
 <body>
+
+    <header>
+        <div class="logo">SEMHAL <span>ADMIN</span></div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/explorer">Explorer</a>
+            <a href="/markets">Markets</a>
+            <a href="/portal/admin" style="color:var(--accent-gold);">Control Panel</a>
+            <a href="/auth/logout">Logout</a>
+        </nav>
+    </header>
+
     <div class="container">
-        <h1>Admin Control Panel</h1>
+        <h1>System Operations</h1>
         <div class="dashboard-grid">
             <aside>
                 <div class="stat-card">
                     <h3>Treasury Oversight</h3>
-                    <p>Total Backing: <strong>$48,217,477,500</strong></p>
-                    <button class="btn" onclick="alert('Treasury Rebalanced')">Refresh Reserves</button>
+                    <p>Total Backing: <strong style="font-size:1.2rem;">$48,217,477,500</strong></p>
+                    <button class="btn" style="width:100%; background:var(--accent-gold); border:none; padding:10px; cursor:pointer; font-weight:bold;">Refresh Reserves</button>
                 </div>
                 <div class="stat-card">
-                    <h3>Conversion Service</h3>
+                    <h3>SUSD Conversion</h3>
                     <form onsubmit="convertMoney(event)">
-                        <input type="text" id="target" placeholder="Recipient Address" class="submit-input">
-                        <input type="number" id="amount" placeholder="Amount SUSD" class="submit-input">
-                        <button type="submit" class="btn">Issue SUSD</button>
+                        <input type="text" id="target" placeholder="Recipient Address" class="submit-input" required>
+                        <input type="number" id="amount" placeholder="Amount SUSD" class="submit-input" required>
+                        <button type="submit" class="btn" style="width:100%; cursor:pointer;">Issue Issuance</button>
                     </form>
                 </div>
             </aside>
             <main>
-                <h2>Active Network Ledger</h2>
-                <table id="ledger-table">
-                    <thead><tr><th>Address</th><th>Balance (SUSD)</th><th>Role</th></tr></thead>
-                    <tbody id="ledger-body"></tbody>
-                </table>
+                <div class="stat-card">
+                    <h2>Network Participants</h2>
+                    <table id="ledger-table">
+                        <thead><tr><th>Address</th><th>Balance (SUSD)</th><th>Role</th></tr></thead>
+                        <tbody id="ledger-body"></tbody>
+                    </table>
+                </div>
             </main>
         </div>
     </div>
@@ -46,19 +73,18 @@
             const data = await res.json();
             const body = document.getElementById('ledger-body');
             body.innerHTML = data.map(acc => `
-                <tr><td>${acc.address}</td><td>${acc.balance_susd}</td><td>${acc.role}</td></tr>
+                <tr><td>${acc.address.substring(0,10)}...</td><td>${acc.balance}</td><td>${acc.role}</td></tr>
             `).join('');
         }
         fetchLedger();
 
         async function convertMoney(e) {
             e.preventDefault();
-            const payload = new FormData();
-            payload.append('receiver', document.getElementById('target').value);
-            payload.append('amount', document.getElementById('amount').value);
-            await fetch('/api/transfer', { method: 'POST', body: payload });
-            alert("SUSD Conversion Issued");
-            fetchLedger();
+            const formData = new FormData();
+            formData.append('receiver', document.getElementById('target').value);
+            formData.append('amount', document.getElementById('amount').value);
+            const res = await fetch('/api/transfer', { method: 'POST', body: formData });
+            if(res.ok) { alert("Conversion Issued Successfully"); fetchLedger(); }
         }
     </script>
 </body>
