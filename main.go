@@ -71,27 +71,7 @@ func main() {
 	r.LoadHTMLGlob("templates/*")
 
 	// Routes
-	r.GET("/", func(c *gin.Context) {
-		session := sessions.Default(c)
-		isLoggedIn := session.Get("address") != nil
-		
-		var currentRole string
-		if isLoggedIn {
-			currentRole = session.Get("role").(string)
-		}
-
-		// Count only the total registered accounts as node markers
-		var nodeCount int64
-		db.Model(&Account{}).Count(&nodeCount)
-
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"is_logged_in": isLoggedIn,
-			"current_role": currentRole,
-			"total_supply": "48,217,477,500.00", // Hardcoded fixed balance tracking variable
-			"total_nodes":  nodeCount,
-		})
-	})
-	
+	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/portfolio", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "portfolio.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
 	r.GET("/transactions", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "history.html", nil) })
