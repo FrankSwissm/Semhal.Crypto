@@ -172,9 +172,7 @@ func AuthRequired(c *gin.Context) {
 func loginHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	var acc Account
-	
-	// FIXED: Modified matching strategy to enforce case-insensitivity on database lookups
-	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err != nil {
+	if err := db.Where("address = ?", addr).First(&acc).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not found"})
 		return
 	}
