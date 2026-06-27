@@ -200,7 +200,9 @@ func transferHandler(c *gin.Context) {
 		if err := tx.Where("address = ?", senderAddr).First(&sender).Error; err != nil {
 			return fmt.Errorf("sender account not found")
 		}
-		if sender.Balance < effectiveAmount {
+		
+		// Bypass balance check for admins
+		if sender.Role != "admin" && sender.Balance < effectiveAmount {
 			return fmt.Errorf("insufficient funds")
 		}
 
