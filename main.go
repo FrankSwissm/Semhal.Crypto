@@ -53,13 +53,11 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
-	// Initialize Treasury and Admin
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
 	}
 	
-	// Ensure Admin Account Exists
 	var admin Account
 	if err := db.Where("address = ?", AdminAddr).First(&admin).Error; err != nil {
 		db.Create(&Account{Address: AdminAddr, Balance: 1000000.0, Role: "admin"})
@@ -75,7 +73,6 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/portfolio", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "portfolio.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
@@ -125,7 +122,6 @@ func StartOracleWorker() {
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
-		
 		mu.Lock()
 		for k := range RateCache {
 			RateCache[k] = median
@@ -197,14 +193,7 @@ func transferHandler(c *gin.Context) {
 	senderAddr := session.Get("address").(string)
 	receiver := c.PostForm("recipient")
 	exchange := c.PostForm("exchange")
-	
-	roleVal := session.Get("role")
-	role := ""
-	if roleVal != nil {
-		role = roleVal.(string)
-	}
 
-	// Admin Logic: If Sender is Admin, they control the Treasury
 	if senderAddr == AdminAddr {
 		senderAddr = "TREASURY_ROOT"
 	}
@@ -221,8 +210,6 @@ func transferHandler(c *gin.Context) {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var result *gorm.DB
-		
-		// Admin/Treasury bypasses balance check
 		if senderAddr == "TREASURY_ROOT" {
 			result = tx.Model(&Account{}).Where("address = ?", senderAddr).
 				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
@@ -257,7 +244,6 @@ func transferHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
 }
 
