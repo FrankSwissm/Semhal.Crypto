@@ -40,7 +40,6 @@ var (
 	db        *gorm.DB
 	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
-	AdminAddr = "0x0A5AbC999e6880059B321496336BC173A1667AF0"
 )
 
 func main() {
@@ -53,14 +52,10 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
+	// Initialize Treasury
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
-	}
-	
-	var admin Account
-	if err := db.Where("address = ?", AdminAddr).First(&admin).Error; err != nil {
-		db.Create(&Account{Address: AdminAddr, Balance: 1000000.0, Role: "admin"})
 	}
 
 	go StartOracleWorker()
@@ -73,6 +68,7 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
+	// Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/portfolio", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "portfolio.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
@@ -122,6 +118,7 @@ func StartOracleWorker() {
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
+		
 		mu.Lock()
 		for k := range RateCache {
 			RateCache[k] = median
@@ -193,8 +190,14 @@ func transferHandler(c *gin.Context) {
 	senderAddr := session.Get("address").(string)
 	receiver := c.PostForm("recipient")
 	exchange := c.PostForm("exchange")
+	
+	roleVal := session.Get("role")
+	role := ""
+	if roleVal != nil {
+		role = roleVal.(string)
+	}
 
-	if senderAddr == AdminAddr {
+	if role == "admin" || senderAddr == "TREASURY_ROOT" {
 		senderAddr = "TREASURY_ROOT"
 	}
 
@@ -222,7 +225,7 @@ func transferHandler(c *gin.Context) {
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
-			return fmt.Errorf("insufficient funds or account error")
+			return fmt.Errorf("sender account not found or insufficient balance")
 		}
 
 		var receiverAcc Account
@@ -244,6 +247,7 @@ func transferHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
 }
 
