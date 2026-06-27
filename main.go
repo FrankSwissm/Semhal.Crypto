@@ -193,6 +193,12 @@ func transferHandler(c *gin.Context) {
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
+	// VALIDATION: Ensure recipient is not empty
+	if receiver == "" {
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient address is required"})
+		return
+	}
+
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
