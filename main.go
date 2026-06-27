@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -37,12 +38,11 @@ type Transaction struct {
 
 var (
 	db        *gorm.DB
-	RateCache = map[string]float64{"semhal": 1.0, "binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
+	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
 )
 
 func main() {
-	// Gin Setup
 	gin.SetMode(gin.ReleaseMode)
 	dsn := os.Getenv("DATABASE_URL")
 	var err error
@@ -52,18 +52,14 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
-	// Initialize Treasury
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
 	}
 
-	// Start Oracle Infrastructure
 	go StartOracleWorker()
 
 	r := gin.Default()
-	
-	// Session Middleware Setup
 	store := cookie.NewStore([]byte("secret-key-change-me"))
 	r.Use(sessions.Sessions("mysession", store))
 
@@ -71,7 +67,7 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
-	// 1. Navigation Routes
+	// Routes
 	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "index.html", nil) })
 	r.GET("/portfolio", AuthRequired, func(c *gin.Context) { c.HTML(http.StatusOK, "portfolio.html", nil) })
 	r.GET("/explorer", func(c *gin.Context) { c.HTML(http.StatusOK, "explorer.html", nil) })
@@ -82,14 +78,12 @@ func main() {
 	r.GET("/markets", func(c *gin.Context) { c.HTML(http.StatusOK, "markets.html", nil) })
 	r.GET("/news", func(c *gin.Context) { c.HTML(http.StatusOK, "news.html", nil) })
 
-	// 2. Dynamic Portal Navigation
 	r.GET("/portal/my-portal", AuthRequired, func(c *gin.Context) {
 		session := sessions.Default(c)
 		role := session.Get("role").(string)
 		c.Redirect(http.StatusFound, "/portal/"+role)
 	})
 
-	// 3. Portal Routes
 	portal := r.Group("/portal")
 	portal.Use(AuthRequired)
 	{
@@ -105,13 +99,11 @@ func main() {
 		portal.GET("/miner", func(c *gin.Context) { c.HTML(http.StatusOK, "miner_portal.html", gin.H{"role": "miner"}) })
 	}
 
-	// 4. Auth Handlers
 	r.POST("/auth/login", loginHandler)
 	r.POST("/auth/register", registerHandler)
 	r.POST("/auth/recover", recoverHandler)
 	r.GET("/auth/logout", logoutHandler)
 
-	// 5. API Routes
 	r.GET("/api/ledger", ledgerHandler)
 	r.POST("/api/transfer", transferHandler)
 	r.GET("/api/history", AuthRequired, historyHandler)
@@ -119,17 +111,16 @@ func main() {
 	r.Run(":8085")
 }
 
-// Oracle Infrastructure
 func StartOracleWorker() {
 	ticker := time.NewTicker(60 * time.Second)
 	for range ticker.C {
-		// Median-based aggregation
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
+		
 		mu.Lock()
 		for k := range RateCache {
-			if k != "semhal" { RateCache[k] = median }
+			RateCache[k] = median
 		}
 		mu.Unlock()
 	}
@@ -138,8 +129,11 @@ func StartOracleWorker() {
 func GetRate(exchange string) float64 {
 	mu.RLock()
 	defer mu.RUnlock()
-	if rate, ok := RateCache[exchange]; ok { return rate }
-	return 1.0
+	rate, ok := RateCache[exchange]
+	if !ok || rate <= 0 {
+		return 1.0
+	}
+	return rate
 }
 
 func AuthRequired(c *gin.Context) {
@@ -193,32 +187,66 @@ func ledgerHandler(c *gin.Context) {
 func transferHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	senderAddr := session.Get("address").(string)
-	receiver, exchange := c.PostForm("recipient"), c.PostForm("exchange")
+	receiver := c.PostForm("recipient")
+	exchange := c.PostForm("exchange")
+	role := session.Get("role").(string)
+	
+	if role == "admin" {
+		senderAddr = "TREASURY_ROOT"
+	}
+
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
+
+	if receiver == "" {
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient required"})
+		return
+	}
 
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, effectiveAmount).
-			Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
-			return err
+		// 1. Update Sender and verify existence
+		result := tx.Model(&Account{}).Where("address = ?", senderAddr).
+			Update("balance", gorm.Expr("balance - ?", effectiveAmount))
+		
+		if result.Error != nil {
+			return result.Error
 		}
-		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
-		return tx.Model(&Account{}).Where("address = ?", receiver).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("sender account not found or insufficient balance")
+		}
+
+		// 2. Add to Receiver
+		var receiverAcc Account
+		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
+			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
+			if err := tx.Create(&newAcc).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Model(&receiverAcc).Update("balance", gorm.Expr("balance + ?", effectiveAmount)).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Log
+		return tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()}).Error
 	})
 
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Transaction failed"})
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
 }
 
 func historyHandler(c *gin.Context) {
 	var txs []Transaction
 	db.Order("created_at desc").Limit(10).Find(&txs)
-	c.JSON(http.StatusOK, txs)
+	payload, _ := json.Marshal(txs)
+	c.Data(http.StatusOK, "application/json", payload)
 }
 
 func logoutHandler(c *gin.Context) {
