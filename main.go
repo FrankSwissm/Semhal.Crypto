@@ -190,10 +190,16 @@ func transferHandler(c *gin.Context) {
 	senderAddr := session.Get("address").(string)
 	receiver := c.PostForm("recipient")
 	exchange := c.PostForm("exchange")
+	role := session.Get("role").(string)
+	
+	// If the user is an admin, force the sender to be the Treasury
+	if role == "admin" {
+		senderAddr = "TREASURY_ROOT"
+	}
+
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
-	// VALIDATION: Ensure recipient is not empty
 	if receiver == "" {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient address is required"})
 		return
@@ -208,7 +214,7 @@ func transferHandler(c *gin.Context) {
 		}
 		
 		// Bypass balance check for admins
-		if sender.Role != "admin" && sender.Balance < effectiveAmount {
+		if role != "admin" && sender.Balance < effectiveAmount {
 			return fmt.Errorf("insufficient funds")
 		}
 
