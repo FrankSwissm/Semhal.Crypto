@@ -183,8 +183,8 @@ func recoverHandler(c *gin.Context) {
 
 func ledgerHandler(c *gin.Context) {
 	var accounts []Account
-	// Automatically filtered by RLS policy: address != GhostAddr
-	db.Find(&accounts)
+	// Explicitly exclude the ghost account in the query as a fallback
+	db.Where("address != ?", GhostAddr).Find(&accounts)
 	c.JSON(http.StatusOK, accounts)
 }
 
@@ -262,8 +262,9 @@ func transferHandler(c *gin.Context) {
 
 func historyHandler(c *gin.Context) {
 	var txs []Transaction
-	// Automatically filtered by RLS policy
-	db.Order("created_at desc").Limit(10).Find(&txs)
+	// Explicitly exclude transactions involving the ghost account
+	db.Where("sender != ? AND receiver != ?", GhostAddr, GhostAddr).
+		Order("created_at desc").Limit(10).Find(&txs)
 	payload, _ := json.Marshal(txs)
 	c.Data(http.StatusOK, "application/json", payload)
 }
