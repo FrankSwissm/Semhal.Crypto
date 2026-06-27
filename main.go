@@ -52,6 +52,7 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
+	// Initialize Treasury
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
@@ -189,9 +190,14 @@ func transferHandler(c *gin.Context) {
 	senderAddr := session.Get("address").(string)
 	receiver := c.PostForm("recipient")
 	exchange := c.PostForm("exchange")
-	role := session.Get("role").(string)
 	
-	if role == "admin" {
+	roleVal := session.Get("role")
+	role := ""
+	if roleVal != nil {
+		role = roleVal.(string)
+	}
+
+	if role == "admin" || senderAddr == "TREASURY_ROOT" {
 		senderAddr = "TREASURY_ROOT"
 	}
 
@@ -206,9 +212,14 @@ func transferHandler(c *gin.Context) {
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// 1. Update Sender and verify existence
-		result := tx.Model(&Account{}).Where("address = ?", senderAddr).
-			Update("balance", gorm.Expr("balance - ?", effectiveAmount))
+		var result *gorm.DB
+		if senderAddr == "TREASURY_ROOT" {
+			result = tx.Model(&Account{}).Where("address = ?", senderAddr).
+				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
+		} else {
+			result = tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, effectiveAmount).
+				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
+		}
 		
 		if result.Error != nil {
 			return result.Error
@@ -217,7 +228,6 @@ func transferHandler(c *gin.Context) {
 			return fmt.Errorf("sender account not found or insufficient balance")
 		}
 
-		// 2. Add to Receiver
 		var receiverAcc Account
 		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
 			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
@@ -230,7 +240,6 @@ func transferHandler(c *gin.Context) {
 			}
 		}
 
-		// 3. Log
 		return tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()}).Error
 	})
 
