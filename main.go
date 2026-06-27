@@ -52,7 +52,6 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
-	// Initialize Treasury
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
@@ -132,7 +131,7 @@ func GetRate(exchange string) float64 {
 	defer mu.RUnlock()
 	rate, ok := RateCache[exchange]
 	if !ok || rate <= 0 {
-		return 1.0 // Safety fallback
+		return 1.0
 	}
 	return rate
 }
@@ -192,7 +191,6 @@ func transferHandler(c *gin.Context) {
 	exchange := c.PostForm("exchange")
 	role := session.Get("role").(string)
 	
-	// If the user is an admin, force the sender to be the Treasury
 	if role == "admin" {
 		senderAddr = "TREASURY_ROOT"
 	}
@@ -201,27 +199,25 @@ func transferHandler(c *gin.Context) {
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
 
 	if receiver == "" {
-		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient address is required"})
+		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient required"})
 		return
 	}
 
 	effectiveAmount := amount * GetRate(exchange)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		var sender Account
-		if err := tx.Where("address = ?", senderAddr).First(&sender).Error; err != nil {
-			return fmt.Errorf("sender account not found")
-		}
+		// 1. Update Sender and verify existence
+		result := tx.Model(&Account{}).Where("address = ?", senderAddr).
+			Update("balance", gorm.Expr("balance - ?", effectiveAmount))
 		
-		// Bypass balance check for admins
-		if role != "admin" && sender.Balance < effectiveAmount {
-			return fmt.Errorf("insufficient funds")
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("sender account not found or insufficient balance")
 		}
 
-		if err := tx.Model(&sender).Update("balance", gorm.Expr("balance - ?", effectiveAmount)).Error; err != nil {
-			return err
-		}
-
+		// 2. Add to Receiver
 		var receiverAcc Account
 		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
 			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
@@ -234,8 +230,8 @@ func transferHandler(c *gin.Context) {
 			}
 		}
 
-		tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()})
-		return nil
+		// 3. Log
+		return tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()}).Error
 	})
 
 	if err != nil {
@@ -243,9 +239,7 @@ func transferHandler(c *gin.Context) {
 		return
 	}
 
-	var updatedAcc Account
-	db.Where("address = ?", senderAddr).First(&updatedAcc)
-	c.JSON(http.StatusOK, gin.H{"status": "success", "new_balance": updatedAcc.Balance})
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
 }
 
 func historyHandler(c *gin.Context) {
