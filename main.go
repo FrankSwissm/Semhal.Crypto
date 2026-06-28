@@ -21,7 +21,7 @@ import (
 type Account struct {
 	Address         string  `gorm:"primaryKey;column:address" json:"address"`
 	Password        string  `gorm:"column:password" json:"-"`
-	Balance         float64 `gorm:"default:100.0;column:balance" json:"balance"`
+	Balance         float64 `gorm:"default:00.0;column:balance" json:"balance"`
 	Role            string  `gorm:"default:'user';column:role" json:"role"`
 	PasswordChanged bool    `gorm:"default:false;column:password_changed" json:"password_changed"`
 	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` 
