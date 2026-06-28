@@ -17,13 +17,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// Account Model
+// Account Model - FULLY SYNCHRONIZED WITH NEON SCHEMA Columns
 type Account struct {
-	Address         string  `gorm:"primaryKey" json:"address"`
-	Password        string  `json:"-"`
-	Balance         float64 `gorm:"default:100.0" json:"balance"`
-	Role            string  `gorm:"default:'user'" json:"role"`
-	PasswordChanged bool    `gorm:"default:false" json:"password_changed"`
+	Address         string  `gorm:"primaryKey;column:address" json:"address"`
+	Password        string  `gorm:"column:password" json:"-"`
+	Balance         float64 `gorm:"default:100.0;column:balance" json:"balance"`
+	Role            string  `gorm:"default:'user';column:role" json:"role"`
+	PasswordChanged bool    `gorm:"default:false;column:password_changed" json:"password_changed"`
+	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` // FIXED: Added missing column layout match
 }
 
 // Transaction History Model
@@ -115,7 +116,7 @@ func main() {
 			session := sessions.Default(c)
 			addr := session.Get("address").(string)
 			var acc Account
-			db.Where("address = ?", addr).First(&acc)
+			db.Where("LOWER(address) = LOWER(?)", addr).First(&acc)
 			c.HTML(http.StatusOK, "user_portal.html", gin.H{"role": "user", "address": acc.Address, "balance": acc.Balance})
 		})
 		portal.GET("/organization", func(c *gin.Context) { c.HTML(http.StatusOK, "organization_portal.html", gin.H{"role": "organization"}) })
@@ -199,12 +200,8 @@ func recoverHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// FIXED: Rewritten to locate, update, and save via the Account structural object—exactly like registration handles it
-	var acc Account
-	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err == nil {
-		acc.Password = string(hashed)
-		db.Save(&acc)
-	}
+	// FIXED: Direct explicit model update bypasses schema object mapping errors completely
+	db.Model(&Account{}).Where("LOWER(address) = LOWER(?)", addr).Update("password", string(hashed))
 	
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
