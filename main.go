@@ -24,7 +24,7 @@ type Account struct {
 	Balance         float64 `gorm:"default:100.0;column:balance" json:"balance"`
 	Role            string  `gorm:"default:'user';column:role" json:"role"`
 	PasswordChanged bool    `gorm:"default:false;column:password_changed" json:"password_changed"`
-	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` // FIXED: Added missing column layout match
+	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` 
 }
 
 // Transaction History Model
@@ -88,7 +88,7 @@ func main() {
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"is_logged_in": isLoggedIn,
 			"current_role": currentRole,
-			"total_supply": "48,217,477,500.00", // Hardcoded fixed balance tracking variable
+			"total_supply": "48,217,477,500.00", 
 			"total_nodes":  nodeCount,
 		})
 	})
@@ -200,8 +200,8 @@ func recoverHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// FIXED: Direct explicit model update bypasses schema object mapping errors completely
-	db.Model(&Account{}).Where("LOWER(address) = LOWER(?)", addr).Update("password", string(hashed))
+	// FIXED: Bypasses model mapping blockers entirely by executing a raw SQL query string update directly to the PostgreSQL engine
+	db.Exec("UPDATE accounts SET password = ? WHERE LOWER(address) = LOWER(?)", string(hashed), addr)
 	
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
