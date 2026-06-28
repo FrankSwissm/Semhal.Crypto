@@ -199,8 +199,11 @@ func recoverHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// FIXED: Made address lookup case-insensitive so password recovery checks work correctly
-	db.Model(&Account{}).Where("LOWER(address) = LOWER(?)", addr).Update("password", string(hashed))
+	// FIXED: Replaced case-sensitive string tracking with an explicit update map targeting the database column name
+	db.Table("accounts").Where("LOWER(address) = LOWER(?)", addr).Updates(map[string]interface{}{
+		"password": string(hashed),
+	})
+	
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
 
