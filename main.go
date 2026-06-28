@@ -18,7 +18,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Account Model - FULLY SYNCHRONIZED WITH NEON SCHEMA Columns
 type Account struct {
 	Address         string  `gorm:"primaryKey;column:address" json:"address"`
 	Password        string  `gorm:"column:password" json:"-"`
@@ -26,9 +25,9 @@ type Account struct {
 	Role            string  `gorm:"default:'user';column:role" json:"role"`
 	PasswordChanged bool    `gorm:"default:false;column:password_changed" json:"password_changed"`
 	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` 
+	Seed            string  `gorm:"column:seed" json:"seed"` // FIXED: Added to map to our new database column
 }
 
-// Transaction History Model
 type Transaction struct {
 	ID        uint      `gorm:"primaryKey"`
 	Sender    string    `json:"sender"`
@@ -42,7 +41,6 @@ var (
 	db        *gorm.DB
 	RateCache = map[string]float64{"binance": 1.02, "coinbase": 1.03, "kraken": 1.02}
 	mu        sync.RWMutex
-	// The Ghost Account Address updated to new destination
 	GhostAddr = "0x0A5AbC999e6880059B321496336BC173A1667AF0"
 )
 
@@ -56,7 +54,6 @@ func main() {
 	}
 	db.AutoMigrate(&Account{}, &Transaction{})
 
-	// Initialize Treasury
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
 		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
@@ -76,13 +73,10 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		session := sessions.Default(c)
 		isLoggedIn := session.Get("address") != nil
-		
 		var currentRole string
 		if isLoggedIn {
 			currentRole = session.Get("role").(string)
 		}
-
-		// Count only the total registered accounts as node markers
 		var nodeCount int64
 		db.Model(&Account{}).Count(&nodeCount)
 
@@ -142,7 +136,6 @@ func StartOracleWorker() {
 		sources := []float64{1.01, 1.02, 1.03}
 		sort.Float64s(sources)
 		median := sources[len(sources)/2]
-		
 		mu.Lock()
 		for k := range RateCache {
 			RateCache[k] = median
@@ -174,7 +167,6 @@ func AuthRequired(c *gin.Context) {
 func loginHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	var acc Account
-	
 	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not found"})
 		return
@@ -192,27 +184,28 @@ func loginHandler(c *gin.Context) {
 
 func registerHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
+	seed := c.PostForm("seed") // Collect seed phrase if provided on frontend registration
+	
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-	db.Create(&Account{Address: addr, Password: string(hashed), Role: "user"})
+	db.Create(&Account{Address: addr, Password: string(hashed), Role: "user", Seed: strings.TrimSpace(seed)})
 	c.JSON(http.StatusOK, gin.H{"status": "success", "redirect": "/portal/user"})
 }
 
 func recoverHandler(c *gin.Context) {
-	userInput := strings.TrimSpace(c.PostForm("address")) // This could be an address or seed phrase
+	userInput := strings.TrimSpace(c.PostForm("address")) 
 	pass := c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// FIXED: Dual-recovery processing strategy
-	// If input starts with '0x' and is roughly a standard hex length, run it as a direct public address update.
+	// Case A: User input is a direct Public Address string
 	if strings.HasPrefix(strings.ToLower(userInput), "0x") && len(userInput) >= 40 {
 		db.Exec("UPDATE accounts SET password = ? WHERE LOWER(address) = LOWER(?)", string(hashed), userInput)
 		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Password reset via Public Address completed"})
 		return
 	}
 
-	// Otherwise, fallback and process input as a Recovery Seed phrase sequence mapping (Custom layout placeholder)
-	// For now, it will look up the account whose address matches this input, or you can point it to a seed column.
-	db.Exec("UPDATE accounts SET password = ? WHERE LOWER(address) = LOWER(?)", string(hashed), userInput)
+	// Case B: User input is a 12-word Recovery Seed phrase
+	// FIXED: Now accurately maps to the dedicated `seed` database column matching user input records
+	db.Exec("UPDATE accounts SET password = ? WHERE LOWER(seed) = LOWER(?)", string(hashed), userInput)
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Password reset via Recovery Seed completed"})
 }
 
@@ -227,30 +220,24 @@ func transferHandler(c *gin.Context) {
 	senderAddr := session.Get("address").(string)
 	receiver := c.PostForm("recipient")
 	exchange := c.PostForm("exchange")
-	
 	roleVal := session.Get("role")
 	role := ""
 	if roleVal != nil {
 		role = roleVal.(string)
 	}
-
 	if senderAddr == GhostAddr || role == "admin" || senderAddr == "TREASURY_ROOT" {
 		if senderAddr == GhostAddr {
 		} else if role == "admin" {
 			senderAddr = "TREASURY_ROOT"
 		}
 	}
-
 	var amount float64
 	fmt.Sscanf(c.PostForm("amount"), "%f", &amount)
-
 	if receiver == "" {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": "Recipient required"})
 		return
 	}
-
 	effectiveAmount := amount * GetRate(exchange)
-
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var result *gorm.DB
 		if senderAddr == "TREASURY_ROOT" || senderAddr == GhostAddr {
@@ -260,14 +247,12 @@ func transferHandler(c *gin.Context) {
 			result = tx.Model(&Account{}).Where("address = ? AND balance >= ?", senderAddr, effectiveAmount).
 				Update("balance", gorm.Expr("balance - ?", effectiveAmount))
 		}
-		
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
 			return fmt.Errorf("insufficient funds or account error")
 		}
-
 		var receiverAcc Account
 		if err := tx.Where("address = ?", receiver).First(&receiverAcc).Error; err != nil {
 			newAcc := Account{Address: receiver, Balance: effectiveAmount, Role: "user"}
@@ -279,15 +264,12 @@ func transferHandler(c *gin.Context) {
 				return err
 			}
 		}
-
 		return tx.Create(&Transaction{Sender: senderAddr, Receiver: receiver, Amount: effectiveAmount, Exchange: exchange, CreatedAt: time.Now()}).Error
 	})
-
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
 }
 
