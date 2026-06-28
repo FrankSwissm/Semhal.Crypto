@@ -199,10 +199,12 @@ func recoverHandler(c *gin.Context) {
 	addr, pass := c.PostForm("address"), c.PostForm("password")
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// FIXED: Replaced case-sensitive string tracking with an explicit update map targeting the database column name
-	db.Table("accounts").Where("LOWER(address) = LOWER(?)", addr).Updates(map[string]interface{}{
-		"password": string(hashed),
-	})
+	// FIXED: Rewritten to locate, update, and save via the Account structural object—exactly like registration handles it
+	var acc Account
+	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err == nil {
+		acc.Password = string(hashed)
+		db.Save(&acc)
+	}
 	
 	c.JSON(http.StatusOK, gin.H{"status": "Recovery successful", "redirect": "/news"})
 }
