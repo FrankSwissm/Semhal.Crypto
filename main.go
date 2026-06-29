@@ -56,7 +56,7 @@ func main() {
 
 	var treasury Account
 	if err := db.Where("address = ?", "TREASURY_ROOT").First(&treasury).Error; err != nil {
-		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 48217477500.0, Role: "admin"})
+		db.Create(&Account{Address: "TREASURY_ROOT", Balance: 86866200000.0, Role: "admin"})
 	}
 
 	go StartOracleWorker()
@@ -83,7 +83,7 @@ func main() {
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"is_logged_in": isLoggedIn,
 			"current_role": currentRole,
-			"total_supply": "48,217,477,500.00", 
+			"total_supply": "86,866,200,000.00", 
 			"total_nodes":  nodeCount,
 		})
 	})
