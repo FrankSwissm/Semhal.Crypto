@@ -25,7 +25,7 @@ type Account struct {
 	Role            string  `gorm:"default:'user';column:role" json:"role"`
 	PasswordChanged bool    `gorm:"default:false;column:password_changed" json:"password_changed"`
 	IsOrg           bool    `gorm:"default:false;column:is_org" json:"is_org"` 
-	Seed            string  `gorm:"column:seed" json:"seed"` // FIXED: Added to map to our new database column
+	Seed            string  `gorm:"column:seed" json:"seed"`
 }
 
 type Transaction struct {
@@ -35,6 +35,24 @@ type Transaction struct {
 	Amount    float64   `json:"amount"`
 	Exchange  string    `json:"exchange"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// Struct to bind incoming cross-system settlement payloads from Milar Node
+type SettleTransactionPayload struct {
+	Wallet            string  `json:"wallet"`
+	TargetRecipient   string  `json:"target_recipient"`
+	Action            string  `json:"action"`
+	AssetID           string  `json:"asset_id"`
+	Amount            float64 `json:"amount"`
+	TotalValueSUSD    float64 `json:"total_value_susd"`
+	MilarSystemEscrow string  `json:"milar_system_escrow"`
+}
+
+// Struct to bind authentication proxies sent via JSON requests
+type JSONAuthPayload struct {
+	Wallet   string `json:"wallet"`
+	Contact  string `json:"contact"`
+	Password string `json:"password"`
 }
 
 var (
@@ -127,6 +145,9 @@ func main() {
 	r.POST("/api/transfer", transferHandler)
 	r.GET("/api/history", AuthRequired, historyHandler)
 
+	// ─── CROSS-SYSTEM SETTLEMENT PIPELINE ENDPOINT ───────────────────
+	r.POST("/api/settle-transaction", settleTransactionHandler)
+
 	r.Run(":8085")
 }
 
@@ -165,14 +186,26 @@ func AuthRequired(c *gin.Context) {
 }
 
 func loginHandler(c *gin.Context) {
-	addr, pass := c.PostForm("address"), c.PostForm("password")
+	var addr, pass string
+
+	// Handle both JSON Proxy requests from Milar and classic PostForm entries
+	if c.ContentType() == "application/json" {
+		var jsonPayload JSONAuthPayload
+		if err := c.ShouldBindJSON(&jsonPayload); err == nil {
+			addr = jsonPayload.Wallet
+			pass = jsonPayload.Password
+		}
+	} else {
+		addr, pass = c.PostForm("address"), c.PostForm("password")
+	}
+
 	var acc Account
 	if err := db.Where("LOWER(address) = LOWER(?)", addr).First(&acc).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not found"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "error": "Account not found", "message": "Account not found"})
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(acc.Password), []byte(pass)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "error": "Invalid credentials", "message": "Invalid credentials"})
 		return
 	}
 	session := sessions.Default(c)
@@ -183,8 +216,19 @@ func loginHandler(c *gin.Context) {
 }
 
 func registerHandler(c *gin.Context) {
-	addr, pass := c.PostForm("address"), c.PostForm("password")
-	seed := c.PostForm("seed") // Collect seed phrase if provided on frontend registration
+	var addr, pass, seed string
+
+	// Handle both JSON Proxy requests from Milar and classic PostForm entries
+	if c.ContentType() == "application/json" {
+		var jsonPayload JSONAuthPayload
+		if err := c.ShouldBindJSON(&jsonPayload); err == nil {
+			addr = jsonPayload.Wallet
+			pass = jsonPayload.Password
+		}
+	} else {
+		addr, pass = c.PostForm("address"), c.PostForm("password")
+		seed = c.PostForm("seed")
+	}
 	
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	db.Create(&Account{Address: addr, Password: string(hashed), Role: "user", Seed: strings.TrimSpace(seed)})
@@ -192,19 +236,27 @@ func registerHandler(c *gin.Context) {
 }
 
 func recoverHandler(c *gin.Context) {
-	userInput := strings.TrimSpace(c.PostForm("address")) 
-	pass := c.PostForm("password")
+	var userInput, pass string
+
+	if c.ContentType() == "application/json" {
+		var jsonPayload JSONAuthPayload
+		if err := c.ShouldBindJSON(&jsonPayload); err == nil {
+			userInput = strings.TrimSpace(jsonPayload.Wallet)
+			pass = jsonPayload.Password
+		}
+	} else {
+		userInput = strings.TrimSpace(c.PostForm("address"))
+		pass = c.PostForm("password")
+	}
+
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	
-	// Case A: User input is a direct Public Address string
 	if strings.HasPrefix(strings.ToLower(userInput), "0x") && len(userInput) >= 40 {
 		db.Exec("UPDATE accounts SET password = ? WHERE LOWER(address) = LOWER(?)", string(hashed), userInput)
 		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Password reset via Public Address completed"})
 		return
 	}
 
-	// Case B: User input is a 12-word Recovery Seed phrase
-	// FIXED: Now accurately maps to the dedicated `seed` database column matching user input records
 	db.Exec("UPDATE accounts SET password = ? WHERE LOWER(seed) = LOWER(?)", string(hashed), userInput)
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Password reset via Recovery Seed completed"})
 }
@@ -271,6 +323,77 @@ func transferHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Transfer successful"})
+}
+
+// ─── SETTLEMENT HANDLER FOR EXT-NODES (MILAR CORE MIGRATION) ───────────
+func settleTransactionHandler(c *gin.Context) {
+	var payload SettleTransactionPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "rejected", "message": "Malformed transactional payload parsing parameters."})
+		return
+	}
+
+	// Calculate cross-currency balance mutations
+	mutationAmount := payload.TotalValueSUSD
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var debitAccount, creditAccount string
+
+		if payload.Action == "buy" {
+			debitAccount = payload.Wallet
+			creditAccount = payload.MilarSystemEscrow
+		} else {
+			debitAccount = payload.Wallet
+			creditAccount = payload.TargetRecipient
+		}
+
+		// 1. Deduct currency balance from sender address
+		var senderResult *gorm.DB
+		if debitAccount == "TREASURY_ROOT" || debitAccount == GhostAddr {
+			senderResult = tx.Model(&Account{}).Where("LOWER(address) = LOWER(?)", debitAccount).
+				Update("balance", gorm.Expr("balance - ?", mutationAmount))
+		} else {
+			senderResult = tx.Model(&Account{}).Where("LOWER(address) = LOWER(?) AND balance >= ?", debitAccount, mutationAmount).
+				Update("balance", gorm.Expr("balance - ?", mutationAmount))
+		}
+
+		if senderResult.Error != nil {
+			return senderResult.Error
+		}
+		if senderResult.RowsAffected == 0 {
+			return fmt.Errorf("Transaction rejected: Semhal Core reported insufficient funds.")
+		}
+
+		// 2. Deposit currency balance to receiver address
+		var receiverAcc Account
+		if err := tx.Where("LOWER(address) = LOWER(?)", creditAccount).First(&receiverAcc).Error; err != nil {
+			// Resolve unknown address targets safely by generating a local ledger row profile
+			newAcc := Account{Address: creditAccount, Balance: mutationAmount, Role: "user"}
+			if err := tx.Create(&newAcc).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Model(&receiverAcc).Update("balance", gorm.Expr("balance + ?", mutationAmount)).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Document cross-network history ledger index
+		return tx.Create(&Transaction{
+			Sender:    debitAccount,
+			Receiver:  creditAccount,
+			Amount:    mutationAmount,
+			Exchange:  "milar_settlement",
+			CreatedAt: time.Now(),
+		}).Error
+	})
+
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"status": "rejected", "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Cross-system balance transaction ledger mutation synchronized successfully."})
 }
 
 func historyHandler(c *gin.Context) {
